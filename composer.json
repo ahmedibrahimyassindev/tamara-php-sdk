@@ -1,0 +1,44 @@
+{
+    "name": "tamara/payment-php-sdk",
+    "description": "Modern, framework-agnostic PHP SDK for Tamara Buy Now Pay Later (BNPL) Payment Gateway",
+    "type": "library",
+    "keywords": [
+        "tamara",
+        "payment",
+        "bnpl",
+        "gateway",
+        "saudi arabia",
+        "uae",
+        "fintech",
+        "sdk"
+    ],
+    "homepage": "https://github.com/tamara/payment-php-sdk",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Contributor",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "psr/log": "^1.0|^2.0|^3.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5|^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tamara\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tamara\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
