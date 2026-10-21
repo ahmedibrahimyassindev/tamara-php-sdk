@@ -1,8 +1,9 @@
 # Tamara Payment PHP SDK (Generic & Standalone)
 
-[![Latest Stable Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://packagist.org/packages/tamara/payment-php-sdk)
-[![PHP Version](https://img.shields.io/badge/php-%3E%3D7.4-8892BF.svg)](https://php.net/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Latest Stable Version](https://img.shields.io/packagist/v/ahmedibrahimyassindev/tamara-php-sdk.svg?style=flat-square)](https://packagist.org/packages/ahmedibrahimyassindev/tamara-php-sdk)
+[![Total Downloads](https://img.shields.io/packagist/dt/ahmedibrahimyassindev/tamara-php-sdk.svg?style=flat-square)](https://packagist.org/packages/ahmedibrahimyassindev/tamara-php-sdk)
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D7.4-8892BF.svg?style=flat-square)](https://php.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 A modern, framework-agnostic PHP SDK for integrating **Tamara (Buy Now Pay Later)** into any PHP project: **Laravel, Symfony, Yii2, WordPress, or custom vanilla applications**.
 
@@ -12,6 +13,7 @@ A modern, framework-agnostic PHP SDK for integrating **Tamara (Buy Now Pay Later
 
 - **Framework Agnostic**: Zero dependency on any specific framework (Yii2, Laravel, etc.).
 - **PSR Standards**: Uses PSR-4 autoloading and optional PSR-3 Logger (`Psr\Log\LoggerInterface`).
+- **Laravel Ready**: Out-of-the-box auto-discovery, `Tamara` Facade, and publishable config.
 - **One-Call Checkout**: Create checkout sessions and redirect customers with minimal boilerplate.
 - **Unified Webhook Processor**: Map events (`order_approved`, `order_authorised`, `order_captured`, `order_declined`) to your model automatically.
 - **Configurable Fees / Markup**: Easily configure or bypass markup rates via `TamaraService::setFeeRatio()`.
@@ -21,7 +23,7 @@ A modern, framework-agnostic PHP SDK for integrating **Tamara (Buy Now Pay Later
 ## Installation
 
 ```bash
-composer require tamara/payment-php-sdk
+composer require ahmedibrahimyassindev/tamara-php-sdk
 ```
 
 ---
