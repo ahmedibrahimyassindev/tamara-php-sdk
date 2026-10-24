@@ -2,17 +2,28 @@
 
 namespace Tamara\Traits;
 
+use Tamara\Security\TamaraOrderStateMachine;
+use Tamara\Security\TamaraSanitizer;
 use Tamara\TamaraService;
 
 /**
- * Reusable trait that implements basic methods for TamaraOrderableInterface.
+ * Reusable trait that implements secure methods for TamaraOrderableInterface.
  * Can be used in Laravel Eloquent models, Yii2 ActiveRecord, or Doctrine entities.
  */
 trait TamaraOrderableTrait
 {
     public function getTamaraOrderReferenceId(): string
     {
-        return (string) ($this->order_reference_id ?? $this->id);
+        if (!empty($this->order_reference_id)) {
+            return (string) $this->order_reference_id;
+        }
+
+        if (!empty($this->id)) {
+            return (string) $this->id;
+        }
+
+        // Generate cryptographically secure reference ID
+        return TamaraService::generateOrderId('ORD');
     }
 
     public function getTamaraCurrency(): string
@@ -45,7 +56,7 @@ trait TamaraOrderableTrait
 
     public function getTamaraItems(): array
     {
-        $amount   = $this->getTamaraAmount();
+        $amount   = (float) $this->getTamaraAmount();
         $currency = $this->getTamaraCurrency();
 
         return [
@@ -74,70 +85,89 @@ trait TamaraOrderableTrait
         ];
     }
 
+    public function getTamaraStatus(): ?string
+    {
+        return isset($this->tamara_status) ? (string) $this->tamara_status : null;
+    }
+
+    /**
+     * Safely transition to a new status using the state machine.
+     * Prevents out-of-order events from overwriting newer or terminal states.
+     *
+     * @param string $newStatus
+     * @return bool True if transition was applied, false if rejected as out-of-order
+     */
+    protected function transitionTamaraStatus(string $newStatus): bool
+    {
+        $currentStatus = $this->getTamaraStatus();
+
+        if (!TamaraOrderStateMachine::canTransition($currentStatus, $newStatus)) {
+            return false;
+        }
+
+        $this->tamara_status = TamaraOrderStateMachine::normalizeStatus($newStatus);
+
+        if (method_exists($this, 'save')) {
+            $this->save();
+        }
+
+        return true;
+    }
+
     public function onTamaraCheckoutCreated(string $orderId, ?string $checkoutId, ?string $referenceId): void
     {
         $this->tamara_order_id    = $orderId;
         $this->tamara_checkout_id = $checkoutId;
-        $this->tamara_status      = 'new';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_NEW);
     }
 
+    /**
+     * Handle raw webhook payload storage.
+     * Redacts sensitive data before persisting to prevent PII or credential leaks.
+     */
     public function onTamaraRawPayload(string $rawPayload): void
     {
-        $this->authorisation_data = $rawPayload;
-        if (method_exists($this, 'save')) {
-            $this->save();
+        // Store sanitized payload to comply with privacy and PCI data protection
+        if (property_exists($this, 'authorisation_data') || isset($this->authorisation_data)) {
+            $this->authorisation_data = TamaraSanitizer::sanitizeJson($rawPayload);
+            if (method_exists($this, 'save')) {
+                $this->save();
+            }
         }
     }
 
     public function onTamaraApproved(array $data): void
     {
-        $this->tamara_status = 'approved';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_APPROVED);
     }
 
     public function onTamaraAuthorised(array $data): void
     {
-        $this->tamara_status = 'authorised';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_AUTHORISED);
     }
 
     public function onTamaraCaptured(array $data): void
     {
-        $this->tamara_status = 'fully_captured';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_FULLY_CAPTURED);
     }
 
     public function onTamaraDeclined(array $data): void
     {
-        $this->tamara_status = 'declined';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_DECLINED);
     }
 
     public function onTamaraCancelled(array $data): void
     {
-        $this->tamara_status = 'cancelled';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_CANCELLED);
     }
 
     public function onTamaraExpired(array $data): void
     {
-        $this->tamara_status = 'expired';
-        if (method_exists($this, 'save')) {
-            $this->save();
-        }
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_EXPIRED);
+    }
+
+    public function onTamaraRefunded(array $data): void
+    {
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_REFUNDED);
     }
 }
-

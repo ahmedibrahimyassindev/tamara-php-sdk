@@ -6,6 +6,9 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Tamara\Exceptions\TamaraApiException;
 use Tamara\Exceptions\TamaraException;
+use Tamara\Exceptions\TamaraSecurityException;
+use Tamara\Security\TamaraSanitizer;
+use Tamara\Security\TamaraSignatureVerifier;
 
 /**
  * Pure PHP HTTP Client for the Tamara API.
@@ -39,12 +42,12 @@ class TamaraClient
         ?LoggerInterface $logger = null,
         int $timeout = 30
     ) {
-        if (empty($merchantToken)) {
+        if (empty(trim($merchantToken))) {
             throw new TamaraException('Tamara merchant token cannot be empty.');
         }
 
-        $this->merchantToken     = $merchantToken;
-        $this->notificationToken = $notificationToken;
+        $this->merchantToken     = trim($merchantToken);
+        $this->notificationToken = trim($notificationToken);
         $this->apiUrl            = $apiUrl ?? ($sandbox ? self::API_URL_SANDBOX : self::API_URL_PRODUCTION);
         $this->logger            = $logger ?? new NullLogger();
         $this->timeout           = $timeout;
@@ -53,6 +56,11 @@ class TamaraClient
     public function getApiUrl(): string
     {
         return $this->apiUrl;
+    }
+
+    public function getNotificationToken(): string
+    {
+        return $this->notificationToken;
     }
 
     public function setLogger(LoggerInterface $logger): self
@@ -169,24 +177,26 @@ class TamaraClient
     }
 
     /**
-     * Verify HMAC-SHA256 signature for webhooks
+     * Verify Tamara notification token (JWT) using Tamara's documented HS256 scheme.
      *
-     * @param string $payload
-     * @param string $signature
-     * @return bool
+     * @param string $token (JWT string or Bearer token header)
+     * @return array Decoded payload claims
+     * @throws TamaraSecurityException|TamaraException
      */
-    public function verifyWebhookSignature(string $payload, string $signature): bool
+    public function verifyWebhookSignature(string $token): array
     {
         if (empty($this->notificationToken)) {
             throw new TamaraException('Tamara notification token is not configured.');
         }
 
-        $computed = hash_hmac('sha256', $payload, $this->notificationToken);
-        return hash_equals($computed, $signature);
+        $extracted = TamaraSignatureVerifier::extractToken($token);
+        $verifier  = new TamaraSignatureVerifier($this->notificationToken);
+
+        return $verifier->verify($extracted ?? $token);
     }
 
     /**
-     * Low-level cURL HTTP request
+     * Low-level cURL HTTP request with sanitized logs and security headers
      *
      * @param string $endpoint
      * @param string $method
@@ -212,34 +222,36 @@ class TamaraClient
 
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, (string) json_encode($data));
         } elseif ($method !== 'GET') {
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             if (!empty($data)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, (string) json_encode($data));
             }
         }
 
         $rawResponse = curl_exec($ch);
-        $httpCode    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode    = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError   = curl_error($ch);
         curl_close($ch);
 
         if ($curlError) {
-            $this->logger->error("Tamara API cURL error [{$method} {$url}]: {$curlError}");
+            $this->logger->error("Tamara API connection failure [{$method} {$endpoint}]: {$curlError}");
             throw new TamaraApiException("Tamara connection error: {$curlError}", 0);
         }
 
-        $body = json_decode($rawResponse, true) ?? [];
+        $body = json_decode((string) $rawResponse, true) ?? [];
 
-        $this->logger->info("Tamara API Request", [
+        // Redact any PII, credentials, or sensitive data before logging
+        $sanitizedResponse = TamaraSanitizer::sanitize($body);
+
+        $this->logger->info("Tamara API Request completed [{$method} {$endpoint}] with status {$httpCode}", [
             'method'   => $method,
             'endpoint' => $endpoint,
             'status'   => $httpCode,
-            'response' => $body,
+            'response' => $sanitizedResponse,
         ]);
 
         return ['status' => $httpCode, 'body' => $body];
     }
 }
-

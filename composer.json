@@ -50,6 +50,9 @@
             }
         }
     },
+    "scripts": {
+        "test": "php tests/run_tests.php"
+    },
     "minimum-stability": "stable",
     "prefer-stable": true
 }

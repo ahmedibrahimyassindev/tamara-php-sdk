@@ -4,6 +4,7 @@ namespace Tamara;
 
 use Psr\Log\LoggerInterface;
 use Tamara\Contracts\TamaraOrderableInterface;
+use Tamara\Security\TamaraOrderStateMachine;
 
 /**
  * High-level Tamara Service Orchestrator
@@ -42,9 +43,6 @@ class TamaraService
 
     /**
      * Create client instance directly from environment variables
-     *
-     * @param LoggerInterface|null $logger
-     * @return self
      */
     public static function fromEnv(?LoggerInterface $logger = null): self
     {
@@ -54,6 +52,21 @@ class TamaraService
 
         $client = new TamaraClient($merchantToken, $notificationToken, $sandbox, null, $logger);
         return new self($client);
+    }
+
+    /**
+     * Create a pre-configured, secure TamaraWebhookProcessor using this service's client credentials.
+     */
+    public function createWebhookProcessor(?LoggerInterface $logger = null): TamaraWebhookProcessor
+    {
+        $processor = new TamaraWebhookProcessor(null, null, $logger);
+
+        $token = $this->client->getNotificationToken();
+        if (!empty($token)) {
+            $processor->setNotificationToken($token);
+        }
+
+        return $processor;
     }
 
     /**
@@ -68,6 +81,7 @@ class TamaraService
      * @param string $description
      * @return string Checkout redirect URL
      * @throws Exceptions\TamaraApiException
+     * @throws Exceptions\TamaraValidationException
      */
     public function initiateCheckout(
         TamaraOrderableInterface $entity,
@@ -119,9 +133,9 @@ class TamaraService
         return $this->client->capturePayment($orderId, $amount, $currency, $items);
     }
 
-    public function cancelOrder(string $orderId): array
+    public function cancelOrder(string $orderId, array $data = []): array
     {
-        return $this->client->cancelOrder($orderId);
+        return $this->client->cancelOrder($orderId, $data);
     }
 
     /**
@@ -141,29 +155,59 @@ class TamaraService
     }
 
     /**
-     * Generate unique reference order ID (RFC4122 v4 UUID or alphanumeric unique)
+     * Generate an RFC 4122 compliant UUID v4 using cryptographically secure random bytes.
+     * Guaranteed uniqueness across distributed applications.
+     */
+    public static function generateUuidV4(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40); // Version 4
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80); // RFC 4122 variant
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    /**
+     * Generate unique merchant reference order ID using cryptographically secure random bytes.
+     * Note: Enforce a UNIQUE constraint in your database (e.g. UNIQUE KEY on `order_reference_id`).
+     *
+     * @param string $prefix Order prefix (e.g. 'ORD')
+     * @return string e.g. "ORD-20261024-A1B2C3D4E5F6"
      */
     public static function generateOrderId(string $prefix = 'ORD'): string
     {
-        return sprintf(
-            '%s-%s-%s-%s',
-            $prefix,
-            date('Ymd'),
-            substr(uniqid(), -6),
-            rand(1000, 9999)
-        );
+        $secureHex = strtoupper(bin2hex(random_bytes(6)));
+        return sprintf('%s-%s-%s', $prefix, date('YmdHis'), $secureHex);
     }
 
     public static function isSuccessStatus(string $status): bool
     {
-        $success = ['approved', 'authorised', 'authorized', 'captured', 'paid', 'fully_captured'];
-        return in_array(strtolower($status), $success, true);
+        $success = [
+            TamaraOrderStateMachine::STATUS_APPROVED,
+            TamaraOrderStateMachine::STATUS_AUTHORISED,
+            TamaraOrderStateMachine::STATUS_FULLY_CAPTURED,
+            'authorized',
+            'captured',
+            'paid',
+        ];
+        return in_array(strtolower(trim($status)), $success, true);
     }
 
     public static function isFailedStatus(string $status): bool
     {
-        $failed = ['failed', 'declined', 'cancelled', 'canceled', 'expired', 'rejected'];
-        return in_array(strtolower($status), $failed, true);
+        $failed = [
+            TamaraOrderStateMachine::STATUS_DECLINED,
+            TamaraOrderStateMachine::STATUS_CANCELLED,
+            TamaraOrderStateMachine::STATUS_EXPIRED,
+            'canceled',
+            'failed',
+            'rejected',
+        ];
+        return in_array(strtolower(trim($status)), $failed, true);
+    }
+
+    public static function isTerminalStatus(string $status): bool
+    {
+        return TamaraOrderStateMachine::isTerminal($status);
     }
 }
-

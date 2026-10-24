@@ -3,12 +3,22 @@
 namespace Tamara;
 
 use Tamara\Contracts\TamaraOrderableInterface;
+use Tamara\Exceptions\TamaraValidationException;
+use Tamara\Security\TamaraPaymentValidator;
 
 /**
- * Builds standard Tamara checkout payload from a generic orderable object.
+ * Builds and validates standard Tamara checkout payloads.
  */
 class TamaraOrderBuilder
 {
+    /** @var bool Whether to run strict financial validation on built payload */
+    protected $validateAmounts = true;
+
+    public function __construct(bool $validateAmounts = true)
+    {
+        $this->validateAmounts = $validateAmounts;
+    }
+
     /**
      * Build checkout payload
      *
@@ -16,10 +26,11 @@ class TamaraOrderBuilder
      * @param string $successUrl
      * @param string $failureUrl
      * @param string $cancelUrl
-     * @param string $notificationUrl (Optional webhook url)
+     * @param string|null $notificationUrl (Optional webhook url)
      * @param string $locale (e.g. 'ar_SA', 'en_SA')
      * @param string $description (Optional description)
      * @return array
+     * @throws TamaraValidationException
      */
     public function build(
         TamaraOrderableInterface $entity,
@@ -30,25 +41,30 @@ class TamaraOrderBuilder
         string $locale = 'ar_SA',
         string $description = 'Online Order'
     ): array {
-        $currency = $entity->getTamaraCurrency();
-        $amount   = $entity->getTamaraAmount();
+        $referenceId = trim($entity->getTamaraOrderReferenceId());
+        if ($referenceId === '') {
+            throw new TamaraValidationException('Order reference ID cannot be empty.');
+        }
+
+        $currency = strtoupper(trim($entity->getTamaraCurrency()));
+        $amount   = (float) $entity->getTamaraAmount();
 
         $payload = [
-            'order_reference_id' => $entity->getTamaraOrderReferenceId(),
+            'order_reference_id' => $referenceId,
             'total_amount'       => [
                 'amount'   => $amount,
                 'currency' => $currency,
             ],
             'shipping_amount'    => [
-                'amount'   => 0,
+                'amount'   => 0.0,
                 'currency' => $currency,
             ],
             'tax_amount'         => [
-                'amount'   => 0,
+                'amount'   => 0.0,
                 'currency' => $currency,
             ],
             'description'        => $description,
-            'country_code'       => $entity->getTamaraCountryCode(),
+            'country_code'       => strtoupper(trim($entity->getTamaraCountryCode())),
             'payment_type'       => $entity->getTamaraPaymentType(),
             'items'              => $entity->getTamaraItems(),
             'locale'             => $locale,
@@ -71,7 +87,20 @@ class TamaraOrderBuilder
             $payload['shipping_address'] = $address;
         }
 
+        if ($this->validateAmounts) {
+            TamaraPaymentValidator::validateCheckoutPayload($payload);
+        }
+
         return $payload;
+    }
+
+    /**
+     * Enable or disable amount validation.
+     */
+    public function setValidateAmounts(bool $validate): self
+    {
+        $this->validateAmounts = $validate;
+        return $this;
     }
 
     /**
@@ -82,4 +111,3 @@ class TamaraOrderBuilder
         return strtolower($lang) . '_' . strtoupper($country);
     }
 }
-

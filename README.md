@@ -85,12 +85,14 @@ header("Location: {$checkoutUrl}");
 exit;
 ```
 
-### 3. Handle Webhooks
+### 3. Handle Webhooks (Secure & Authenticated)
 
 ```php
-use Tamara\TamaraWebhookProcessor;
+use Tamara\TamaraService;
 
-$processor = new TamaraWebhookProcessor();
+$service   = TamaraService::fromEnv();
+$processor = $service->createWebhookProcessor();
+
 
 // Register resolvers to find matching orders by reference ID
 $processor->addResolver(function (string $orderReferenceId) {
@@ -118,7 +120,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Tamara\TamaraService;
-use Tamara\TamaraWebhookProcessor;
+use Tamara\TamaraService;
 
 class TamaraPaymentController extends Controller
 {
@@ -134,9 +136,9 @@ class TamaraPaymentController extends Controller
         return redirect()->away($redirectUrl);
     }
 
-    public function webhook(Request $request)
+    public function webhook(Request $request, TamaraWebhookProcessor $processor)
     {
-        $processor = new TamaraWebhookProcessor();
+
         $processor->addResolver(fn($ref) => Order::where('order_reference', $ref)->first());
 
         $result = $processor->process($request->all(), $request->getContent());

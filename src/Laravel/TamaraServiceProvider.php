@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Tamara\TamaraClient;
 use Tamara\TamaraService;
+use Tamara\TamaraWebhookProcessor;
 
 class TamaraServiceProvider extends ServiceProvider
 {
@@ -47,13 +48,17 @@ class TamaraServiceProvider extends ServiceProvider
             return new TamaraService($app->make(TamaraClient::class));
         });
 
+        // Bind TamaraWebhookProcessor as scoped or transient
+        $this->app->bind(TamaraWebhookProcessor::class, function ($app) {
+            return $app->make(TamaraService::class)->createWebhookProcessor();
+        });
+
         // Alias for Facade access
         $this->app->alias(TamaraService::class, 'tamara');
     }
 
     public function provides(): array
     {
-        return [TamaraClient::class, TamaraService::class, 'tamara'];
+        return [TamaraClient::class, TamaraService::class, TamaraWebhookProcessor::class, 'tamara'];
     }
 }
-
