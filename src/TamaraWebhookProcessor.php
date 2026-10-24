@@ -13,6 +13,7 @@ use Tamara\Security\TamaraInMemoryDeduplicator;
 use Tamara\Security\TamaraOrderStateMachine;
 use Tamara\Security\TamaraSanitizer;
 use Tamara\Security\TamaraSignatureVerifier;
+use Throwable;
 
 /**
  * Handles incoming Tamara webhooks securely:
@@ -222,7 +223,7 @@ class TamaraWebhookProcessor
         $orderId          = (string) $data['order_id'];
         $eventType        = strtolower(trim((string) $data['event_type']));
 
-        // 3. Handle Unknown Webhook Events Correctly (Fail closed for unhandled events)
+        // 3. Acknowledge unknown event types so Tamara does not retry events we cannot handle
         $hasMethodHandler = isset(self::EVENT_MAP[$eventType]);
         $hasCustomHandler = isset($this->customHandlers[$eventType]);
 
@@ -257,18 +258,6 @@ class TamaraWebhookProcessor
         $targetStatus  = self::EVENT_TO_STATUS[$eventType] ?? null;
         $currentStatus = method_exists($entity, 'getTamaraStatus') ? $entity->getTamaraStatus() : null;
 
-        if ($this->isPrematureEvent($eventType, $currentStatus)) {
-            $this->logger->warning(sprintf(
-                'Tamara Webhook: Capture event arrived before authorisation for order [%s].',
-                $orderReferenceId
-            ));
-            return [
-                'success' => false,
-                'http_status' => 409,
-                'message' => 'Capture event arrived before the order was authorised',
-            ];
-        }
-
         if ($targetStatus !== null && !TamaraOrderStateMachine::canTransition($currentStatus, $targetStatus)) {
             $this->logger->warning(sprintf(
                 'Tamara Webhook: Out-of-order transition rejected. Order [%s] in status [%s] cannot transition to [%s] via [%s].',
@@ -290,7 +279,6 @@ class TamaraWebhookProcessor
         if ($eventType === 'order_approved' && $this->autoAuthorise) {
             try {
                 ($this->authoriser)($orderId);
-                $entity->onTamaraAuthorised($data);
             } catch (TamaraApiException $e) {
                 $this->logger->error('Tamara auto-authorisation failed.', [
                     'order_reference_id' => $orderReferenceId,
@@ -302,6 +290,15 @@ class TamaraWebhookProcessor
                     'order_reference_id' => $orderReferenceId,
                 ]);
                 return ['success' => false, 'http_status' => 502, 'error' => 'Tamara auto-authorisation failed'];
+            }
+
+            try {
+                $this->dispatch($entity, 'order_authorised', $data);
+            } catch (Throwable $e) {
+                $this->logger->error('Tamara authorisation succeeded remotely but local handling failed.', [
+                    'order_reference_id' => $orderReferenceId,
+                ]);
+                return ['success' => false, 'http_status' => 500, 'error' => 'Local authorisation handling failed'];
             }
         }
 
@@ -372,13 +369,6 @@ class TamaraWebhookProcessor
         }
 
         return sprintf('tamara:event:%s:%s', $orderId, $eventType);
-    }
-
-    protected function isPrematureEvent(string $eventType, ?string $currentStatus): bool
-    {
-        $current = $currentStatus === null ? null : TamaraOrderStateMachine::normalizeStatus($currentStatus);
-        return in_array($eventType, ['order_captured', 'order_fully_captured'], true)
-            && in_array($current, [null, TamaraOrderStateMachine::STATUS_NEW, TamaraOrderStateMachine::STATUS_APPROVED], true);
     }
 
     /**

@@ -11,6 +11,8 @@ $testClasses = [
     \Tamara\Tests\TamaraWebhookProcessorTest::class,
     \Tamara\Tests\TamaraOrderBuilderTest::class,
     \Tamara\Tests\TamaraClientTest::class,
+    \Tamara\Tests\TamaraServiceTest::class,
+    \Tamara\Tests\TamaraLaravelProviderTest::class,
 ];
 
 echo "==========================================\n";

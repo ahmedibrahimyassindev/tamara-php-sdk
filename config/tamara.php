@@ -32,6 +32,10 @@ return [
     */
     'sandbox' => env('TAMARA_SANDBOX', false),
 
+    'auto_authorise' => env('TAMARA_AUTO_AUTHORISE', false),
+
+    'requires_shipping_address' => env('TAMARA_REQUIRES_SHIPPING_ADDRESS', true),
+
     /*
     |--------------------------------------------------------------------------
     | Default Locale

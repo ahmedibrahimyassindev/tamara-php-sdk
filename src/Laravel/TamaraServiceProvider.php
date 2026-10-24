@@ -5,6 +5,7 @@ namespace Tamara\Laravel;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Tamara\TamaraClient;
+use Tamara\TamaraOrderBuilder;
 use Tamara\TamaraService;
 use Tamara\TamaraWebhookProcessor;
 
@@ -45,12 +46,21 @@ class TamaraServiceProvider extends ServiceProvider
 
         // Bind TamaraService as singleton
         $this->app->singleton(TamaraService::class, function ($app) {
-            return new TamaraService($app->make(TamaraClient::class));
+            $config = $app['config']->get('tamara', []);
+            $builder = (new TamaraOrderBuilder())->setRequiresShippingAddress(
+                (bool) ($config['requires_shipping_address'] ?? true)
+            );
+            return new TamaraService($app->make(TamaraClient::class), $builder);
         });
 
         // Bind TamaraWebhookProcessor as scoped or transient
         $this->app->bind(TamaraWebhookProcessor::class, function ($app) {
-            return $app->make(TamaraService::class)->createWebhookProcessor();
+            $config = $app['config']->get('tamara', []);
+            $processor = $app->make(TamaraService::class)->createWebhookProcessor();
+            if ((bool) ($config['auto_authorise'] ?? false)) {
+                $processor->autoAuthorise();
+            }
+            return $processor;
         });
 
         // Alias for Facade access

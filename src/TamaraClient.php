@@ -153,9 +153,18 @@ class TamaraClient
         float $discountAmount = 0.0
     ): array
     {
-        foreach (['shipped_at', 'shipping_company', 'tracking_number', 'tracking_url'] as $field) {
+        foreach (['shipped_at', 'shipping_company'] as $field) {
             if (!isset($shippingInfo[$field]) || !is_string($shippingInfo[$field]) || trim($shippingInfo[$field]) === '') {
                 throw new TamaraValidationException("Tamara capture shipping_info requires a non-empty {$field}.");
+            }
+        }
+        foreach (['tracking_number', 'tracking_url'] as $field) {
+            $value = $shippingInfo[$field] ?? null;
+            $valid = $field === 'tracking_number'
+                ? ($value === null || is_string($value) || is_int($value))
+                : ($value === null || is_string($value));
+            if (!$valid) {
+                throw new TamaraValidationException("Tamara capture shipping_info field {$field} must be a string, integer, or null.");
             }
         }
         $data = [
@@ -191,9 +200,15 @@ class TamaraClient
      */
     public function cancelOrder(string $orderId, array $data = []): array
     {
-        $order = $this->getOrder($orderId);
-        if (TamaraOrderStateMachine::normalizeStatus((string) ($order['status'] ?? '')) !== TamaraOrderStateMachine::STATUS_AUTHORISED) {
-            throw new TamaraValidationException('Tamara cancellation is only allowed for authorised orders.');
+        if (!isset($data['total_amount'])) {
+            $order = $this->getOrder($orderId);
+            if (TamaraOrderStateMachine::normalizeStatus((string) ($order['status'] ?? '')) !== TamaraOrderStateMachine::STATUS_AUTHORISED) {
+                throw new TamaraValidationException('Tamara cancellation is only allowed for authorised orders.');
+            }
+            if (!isset($order['total_amount']) || !is_array($order['total_amount'])) {
+                throw new TamaraValidationException('Unable to build cancellation body: remote order has no total_amount.');
+            }
+            $data['total_amount'] = $order['total_amount'];
         }
         $response = $this->request('/orders/' . rawurlencode($orderId) . '/cancel', 'POST', $data);
 
@@ -201,6 +216,9 @@ class TamaraClient
             return $response['body'];
         }
 
+        if ($response['status'] === 409) {
+            throw new TamaraValidationException('Tamara rejected cancellation because the order is not in a cancellable state.');
+        }
         $msg = $response['body']['message'] ?? "Unable to cancel order {$orderId}";
         throw new TamaraApiException($msg, $response['status'], $response['body']);
     }

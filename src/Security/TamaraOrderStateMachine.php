@@ -24,6 +24,7 @@ class TamaraOrderStateMachine
         self::STATUS_NEW => [
             self::STATUS_APPROVED,
             self::STATUS_AUTHORISED,
+            self::STATUS_FULLY_CAPTURED,
             self::STATUS_DECLINED,
             self::STATUS_CANCELLED,
             self::STATUS_EXPIRED,
@@ -74,6 +75,7 @@ class TamaraOrderStateMachine
                 self::STATUS_NEW,
                 self::STATUS_APPROVED,
                 self::STATUS_AUTHORISED,
+                self::STATUS_FULLY_CAPTURED,
                 self::STATUS_DECLINED,
                 self::STATUS_CANCELLED,
                 self::STATUS_EXPIRED,

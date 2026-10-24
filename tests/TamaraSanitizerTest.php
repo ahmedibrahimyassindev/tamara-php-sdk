@@ -28,13 +28,13 @@ class TamaraSanitizerTest
 
         $sanitized = TamaraSanitizer::sanitize($sensitiveData);
 
-        assert($sanitized['merchant_token'] === '[REDACTED]', 'Token must be redacted');
-        assert($sanitized['consumer']['first_name'] === '[REDACTED]', 'PII must be redacted');
-        assert($sanitized['consumer']['email'] === '[REDACTED]', 'Email must be redacted');
-        assert($sanitized['consumer']['phone_number'] === '[REDACTED]', 'Phone must be redacted');
-        assert($sanitized['card_number'] === '[REDACTED]', 'Card number must be redacted');
-        assert($sanitized['order_id'] === '12345', 'Safe fields must be preserved');
-        assert($sanitized['total_amount'] === 150.00, 'Amount must be preserved');
+        testExpect($sanitized['merchant_token'] === '[REDACTED]', 'Token must be redacted');
+        testExpect($sanitized['consumer']['first_name'] === '[REDACTED]', 'PII must be redacted');
+        testExpect($sanitized['consumer']['email'] === '[REDACTED]', 'Email must be redacted');
+        testExpect($sanitized['consumer']['phone_number'] === '[REDACTED]', 'Phone must be redacted');
+        testExpect($sanitized['card_number'] === '[REDACTED]', 'Card number must be redacted');
+        testExpect($sanitized['order_id'] === '12345', 'Safe fields must be preserved');
+        testExpect($sanitized['total_amount'] === 150.00, 'Amount must be preserved');
     }
 
     protected function testJsonSanitization(): void
@@ -42,8 +42,8 @@ class TamaraSanitizerTest
         $json = json_encode(['email' => 'user@test.com', 'order_id' => 'abc']);
         $cleaned = TamaraSanitizer::sanitizeJson($json);
 
-        assert(str_contains($cleaned, '[REDACTED]'), 'PII in JSON must be redacted');
-        assert(str_contains($cleaned, 'abc'), 'Safe values in JSON must remain');
+        testExpect(str_contains($cleaned, '[REDACTED]'), 'PII in JSON must be redacted');
+        testExpect(str_contains($cleaned, 'abc'), 'Safe values in JSON must remain');
     }
 }
 

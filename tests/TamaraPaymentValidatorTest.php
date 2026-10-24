@@ -16,6 +16,7 @@ class TamaraPaymentValidatorTest
         $this->testInvalidCurrencyRejected();
         $this->testAmountArithmeticMismatchRejected();
         $this->testItemArithmeticMismatchRejected();
+        $this->testDiscountArithmetic();
     }
 
     protected function testValidOrderPayload(): void
@@ -36,7 +37,7 @@ class TamaraPaymentValidatorTest
 
         // 75 (items) + 10 (shipping) + 15 (tax) = 100.00
         TamaraPaymentValidator::validateCheckoutPayload($payload);
-        assert(true, 'Valid payload must pass');
+        testExpect(true, 'Valid payload must pass');
     }
 
     protected function testNegativeAmountRejected(): void
@@ -47,7 +48,7 @@ class TamaraPaymentValidatorTest
         } catch (TamaraValidationException $e) {
             $caught = true;
         }
-        assert($caught, 'Negative amount must be rejected');
+        testExpect($caught, 'Negative amount must be rejected');
     }
 
     protected function testZeroAmountRejected(): void
@@ -58,7 +59,7 @@ class TamaraPaymentValidatorTest
         } catch (TamaraValidationException $e) {
             $caught = true;
         }
-        assert($caught, 'Zero total amount must be rejected');
+        testExpect($caught, 'Zero total amount must be rejected');
     }
 
     protected function testExcessiveDecimalsRejected(): void
@@ -69,9 +70,9 @@ class TamaraPaymentValidatorTest
             TamaraPaymentValidator::validateAmount(10.125, 'SAR', 'total_amount', true);
         } catch (TamaraValidationException $e) {
             $caught = true;
-            assert(str_contains($e->getMessage(), 'decimal places'));
+            testExpect(str_contains($e->getMessage(), 'decimal places'));
         }
-        assert($caught, 'Excessive decimal precision must be rejected');
+        testExpect($caught, 'Excessive decimal precision must be rejected');
     }
 
     protected function testInvalidCurrencyRejected(): void
@@ -82,7 +83,7 @@ class TamaraPaymentValidatorTest
         } catch (TamaraValidationException $e) {
             $caught = true;
         }
-        assert($caught, 'Lowercase currency code must be rejected');
+        testExpect($caught, 'Lowercase currency code must be rejected');
 
         $caught = false;
         try {
@@ -90,7 +91,7 @@ class TamaraPaymentValidatorTest
         } catch (TamaraValidationException $e) {
             $caught = true;
         }
-        assert($caught, 'Invalid currency code length must be rejected');
+        testExpect($caught, 'Invalid currency code length must be rejected');
     }
 
     protected function testAmountArithmeticMismatchRejected(): void
@@ -114,9 +115,9 @@ class TamaraPaymentValidatorTest
             TamaraPaymentValidator::validateCheckoutPayload($payload);
         } catch (TamaraValidationException $e) {
             $caught = true;
-            assert(str_contains($e->getMessage(), 'Order amount mismatch'));
+            testExpect(str_contains($e->getMessage(), 'Order amount mismatch'));
         }
-        assert($caught, 'Amount mismatch must be rejected');
+        testExpect($caught, 'Amount mismatch must be rejected');
     }
 
     protected function testItemArithmeticMismatchRejected(): void
@@ -134,7 +135,22 @@ class TamaraPaymentValidatorTest
         } catch (TamaraValidationException $e) {
             $caught = true;
         }
-        assert($caught, 'Item math discrepancy must be rejected');
+        testExpect($caught, 'Item math discrepancy must be rejected');
+    }
+
+    protected function testDiscountArithmetic(): void
+    {
+        TamaraPaymentValidator::validateCheckoutPayload([
+            'total_amount' => ['amount' => 95.0, 'currency' => 'SAR'],
+            'discount' => ['name' => 'Promo', 'amount' => ['amount' => 5.0, 'currency' => 'SAR']],
+            'items' => [[
+                'name' => 'Item',
+                'quantity' => 1,
+                'unit_price' => ['amount' => 100.0, 'currency' => 'SAR'],
+                'total_amount' => ['amount' => 100.0, 'currency' => 'SAR'],
+            ]],
+        ]);
+        testExpect(true, 'Discount arithmetic must be accepted.');
     }
 }
 

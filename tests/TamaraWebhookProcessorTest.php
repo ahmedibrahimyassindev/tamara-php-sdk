@@ -65,7 +65,7 @@ class TamaraWebhookProcessorTest
         $this->testSuccessfulEventProcessing();
         $this->testDeduplicationPreventsDuplicateProcessing();
         $this->testOutofOrderEventRejected();
-        $this->testPrematureCaptureIsRetryable();
+        $this->testCaptureEventAdvancesApprovedOrder();
         $this->testAutoAuthoriseAndFailureResponse();
         $this->testRawPayloadStorageDisabledByDefault();
     }
@@ -84,8 +84,8 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: null);
 
-        assert($res['success'] === false, 'Must fail closed when token is missing');
-        assert(str_contains($res['error'], 'Missing Tamara authentication token'));
+        testExpect($res['success'] === false, 'Must fail closed when token is missing');
+        testExpect(str_contains($res['error'], 'Missing Tamara authentication token'));
     }
 
     protected function testSignatureEnforcementFailsClosedWithInvalidSignature(): void
@@ -104,8 +104,8 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $fakeToken);
 
-        assert($res['success'] === false, 'Must fail closed when signature is invalid');
-        assert(str_contains($res['error'], 'Invalid webhook authentication'));
+        testExpect($res['success'] === false, 'Must fail closed when signature is invalid');
+        testExpect(str_contains($res['error'], 'Invalid webhook authentication'));
     }
 
     protected function testRejectMalformedPayload(): void
@@ -118,13 +118,13 @@ class TamaraWebhookProcessorTest
         // Missing event_type
         $badPayload = json_encode(['order_id' => '1', 'order_reference_id' => '1']);
         $res = $processor->process(json_decode($badPayload, true), $badPayload, token: $token);
-        assert($res['success'] === false);
-        assert(str_contains($res['error'], 'event_type'));
+        testExpect($res['success'] === false);
+        testExpect(str_contains($res['error'], 'event_type'));
 
         // Invalid JSON
         $res = $processor->process([], '{not: json}', token: $token);
-        assert($res['success'] === false);
-        assert(str_contains($res['error'], 'Invalid JSON'));
+        testExpect($res['success'] === false);
+        testExpect(str_contains($res['error'], 'Invalid JSON'));
     }
 
     protected function testUnknownEventRejectedFailClosed(): void
@@ -141,8 +141,8 @@ class TamaraWebhookProcessorTest
         ]);
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res['success'] === true && $res['ignored'] === true, 'Unknown events should be acknowledged and ignored');
-        assert($res['http_status'] === 200);
+        testExpect($res['success'] === true && $res['ignored'] === true, 'Unknown events should be acknowledged and ignored');
+        testExpect($res['http_status'] === 200);
     }
 
     protected function testSuccessfulEventProcessing(): void
@@ -163,9 +163,9 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
 
-        assert($res['success'] === true, 'Valid webhook must succeed');
-        assert($mockOrder->tamara_status === 'approved', 'Order status must be updated to approved');
-        assert($mockOrder->eventsReceived === ['approved'], 'Callback method must be invoked');
+        testExpect($res['success'] === true, 'Valid webhook must succeed');
+        testExpect($mockOrder->tamara_status === 'approved', 'Order status must be updated to approved');
+        testExpect($mockOrder->eventsReceived === ['approved'], 'Callback method must be invoked');
     }
 
     protected function testDeduplicationPreventsDuplicateProcessing(): void
@@ -188,13 +188,13 @@ class TamaraWebhookProcessorTest
 
         // First delivery
         $res1 = $processor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res1['success'] === true && empty($res1['duplicate']));
-        assert(count($mockOrder->eventsReceived) === 1);
+        testExpect($res1['success'] === true && empty($res1['duplicate']));
+        testExpect(count($mockOrder->eventsReceived) === 1);
 
         // Second delivery (duplicate retry from Tamara)
         $res2 = $processor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res2['success'] === true && $res2['duplicate'] === true, 'Must report duplicate');
-        assert(count($mockOrder->eventsReceived) === 1, 'Duplicate must not invoke callback again');
+        testExpect($res2['success'] === true && $res2['duplicate'] === true, 'Must report duplicate');
+        testExpect(count($mockOrder->eventsReceived) === 1, 'Duplicate must not invoke callback again');
     }
 
     protected function testOutofOrderEventRejected(): void
@@ -217,12 +217,12 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
 
-        assert($res['success'] === true && $res['ignored'] === true, 'Obsolete transitions should be acknowledged and ignored');
-        assert($res['http_status'] === 200);
-        assert($mockOrder->tamara_status === 'fully_captured', 'Terminal state must not be overwritten');
+        testExpect($res['success'] === true && $res['ignored'] === true, 'Obsolete transitions should be acknowledged and ignored');
+        testExpect($res['http_status'] === 200);
+        testExpect($mockOrder->tamara_status === 'fully_captured', 'Terminal state must not be overwritten');
     }
 
-    protected function testPrematureCaptureIsRetryable(): void
+    protected function testCaptureEventAdvancesApprovedOrder(): void
     {
         $secret = 'test-secret';
         $mockOrder = new MockOrder();
@@ -233,8 +233,8 @@ class TamaraWebhookProcessorTest
         $token = TamaraSignatureVerifier::generateToken(['order_id' => 'ord-1'], $secret);
         $payload = json_encode(['order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_captured']);
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res['success'] === false && $res['http_status'] === 409);
-        assert(empty($res['ignored']));
+        testExpect($res['success'] === true && $res['http_status'] === 200);
+        testExpect($mockOrder->tamara_status === 'fully_captured');
     }
 
     protected function testAutoAuthoriseAndFailureResponse(): void
@@ -250,8 +250,8 @@ class TamaraWebhookProcessorTest
         $token = TamaraSignatureVerifier::generateToken(['order_id' => 'ord-1'], $secret);
         $payload = json_encode(['order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_approved']);
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res['success'] === true && $mockOrder->tamara_status === 'authorised');
-        assert($calls === 1);
+        testExpect($res['success'] === true && $mockOrder->tamara_status === 'authorised');
+        testExpect($calls === 1);
 
         $secondProcessor = new TamaraWebhookProcessor();
         $secondProcessor->setNotificationToken($secret);
@@ -259,8 +259,8 @@ class TamaraWebhookProcessorTest
         $secondProcessor->setAuthoriser(function () use (&$calls): void { $calls++; });
         $secondProcessor->autoAuthorise();
         $res = $secondProcessor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res['success'] === true && $res['ignored'] === true);
-        assert($calls === 1, 'Already authorised order should not call authoriser again.');
+        testExpect($res['success'] === true && $res['ignored'] === true);
+        testExpect($calls === 1, 'Already authorised order should not call authoriser again.');
 
         $retryableOrder = new MockOrder();
         $failedProcessor = new TamaraWebhookProcessor();
@@ -269,8 +269,8 @@ class TamaraWebhookProcessorTest
         $failedProcessor->setAuthoriser(function (): void { throw new TamaraApiException('private api detail', 503); });
         $failedProcessor->autoAuthorise();
         $res = $failedProcessor->process(json_decode($payload, true), $payload, token: $token);
-        assert($res['success'] === false && $res['http_status'] === 502);
-        assert(!str_contains($res['error'], 'private api detail'));
+        testExpect($res['success'] === false && $res['http_status'] === 502);
+        testExpect(!str_contains($res['error'], 'private api detail'));
     }
 
     protected function testRawPayloadStorageDisabledByDefault(): void
@@ -291,7 +291,7 @@ class TamaraWebhookProcessorTest
 
         $processor->process(json_decode($payload, true), $payload, token: $token);
 
-        assert($mockOrder->rawPayloadReceived === null, 'Raw payload must NOT be stored by default');
+        testExpect($mockOrder->rawPayloadReceived === null, 'Raw payload must NOT be stored by default');
     }
 }
 

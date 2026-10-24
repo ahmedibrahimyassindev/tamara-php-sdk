@@ -36,7 +36,13 @@ Set the following environment variables (or pass them directly into `TamaraClien
 TAMARA_MERCHANT_TOKEN=your_merchant_api_token
 TAMARA_NOTIFICATION_TOKEN=your_notification_webhook_secret
 TAMARA_SANDBOX=true # Set to false in production
+TAMARA_AUTO_AUTHORISE=false
+TAMARA_REQUIRES_SHIPPING_ADDRESS=true
 ```
+
+In Laravel, `TAMARA_AUTO_AUTHORISE=true` enables authorisation in the webhook
+processor resolved by the service provider. Set `TAMARA_REQUIRES_SHIPPING_ADDRESS=false`
+for checkouts that contain no shippable goods.
 
 ---
 
@@ -196,6 +202,10 @@ configured with `(new TamaraOrderBuilder())->setRequiresShippingAddress(false)` 
 zero shipping and tax amounts when the order does not define
 `getTamaraShippingAmount()` or `getTamaraTaxAmount()`. A positive discount is included
 only when the order defines `getTamaraDiscount()`, and its payload includes a name.
+The trait's default item represents the full order amount. If your order has shipping,
+tax, or a discount, override `getTamaraItems()` so item totals plus those adjustments
+match `getTamaraAmount()`. The optional discount label can be supplied by implementing
+`getTamaraDiscountName()`; otherwise the builder uses `Discount`.
 
 ---
 

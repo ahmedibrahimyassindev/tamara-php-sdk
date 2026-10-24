@@ -4,7 +4,9 @@ namespace Tamara;
 
 use Psr\Log\LoggerInterface;
 use Tamara\Contracts\TamaraOrderableInterface;
+use Tamara\Exceptions\TamaraApiException;
 use Tamara\Security\TamaraOrderStateMachine;
+use Throwable;
 
 /**
  * High-level Tamara Service Orchestrator
@@ -121,7 +123,25 @@ class TamaraService
 
     public function authoriseOrder(string $orderId): array
     {
-        return $this->client->authoriseOrder($orderId);
+        try {
+            return $this->client->authoriseOrder($orderId);
+        } catch (TamaraApiException $e) {
+            try {
+                $order = $this->client->getOrder($orderId);
+            } catch (Throwable $lookupError) {
+                throw $e;
+            }
+
+            $status = TamaraOrderStateMachine::normalizeStatus((string) ($order['status'] ?? ''));
+            if (in_array($status, [
+                TamaraOrderStateMachine::STATUS_AUTHORISED,
+                TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED,
+                TamaraOrderStateMachine::STATUS_FULLY_CAPTURED,
+            ], true)) {
+                return $order;
+            }
+            throw $e;
+        }
     }
 
     public function getOrder(string $orderId): array

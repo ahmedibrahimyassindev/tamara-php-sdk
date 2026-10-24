@@ -45,10 +45,10 @@ class TamaraOrderBuilderTest
     private function testDefaultFinancialFieldsAndOptionalRiskData(): void
     {
         $payload = $this->build(new BuilderOrder());
-        assert($payload['shipping_amount'] === ['amount' => 0.0, 'currency' => 'SAR']);
-        assert($payload['tax_amount'] === ['amount' => 0.0, 'currency' => 'SAR']);
-        assert(!array_key_exists('risk_assessment', $payload));
-        assert(!array_key_exists('discount', $payload));
+        testExpect($payload['shipping_amount'] === ['amount' => 0.0, 'currency' => 'SAR']);
+        testExpect($payload['tax_amount'] === ['amount' => 0.0, 'currency' => 'SAR']);
+        testExpect(!array_key_exists('risk_assessment', $payload));
+        testExpect(!array_key_exists('discount', $payload));
     }
 
     private function testDiscountRequiresPositiveAmountAndHasName(): void
@@ -65,29 +65,29 @@ class TamaraOrderBuilderTest
             }
         };
         $payload = $this->build($order);
-        assert($payload['discount']['name'] === 'Discount');
-        assert($payload['discount']['amount'] === ['amount' => 5.0, 'currency' => 'SAR']);
+        testExpect($payload['discount']['name'] === 'Discount');
+        testExpect($payload['discount']['amount'] === ['amount' => 5.0, 'currency' => 'SAR']);
     }
 
     private function testDigitalCheckoutCanOmitAddressWhenConfigured(): void
     {
         $builder = (new TamaraOrderBuilder())->setRequiresShippingAddress(false);
         $payload = $this->build(new DigitalBuilderOrder(), $builder);
-        assert(!array_key_exists('shipping_address', $payload));
-        assert(!array_key_exists('billing_address', $payload));
+        testExpect(!array_key_exists('shipping_address', $payload));
+        testExpect(!array_key_exists('billing_address', $payload));
 
         try {
             $this->build(new DigitalBuilderOrder());
-            assert(false, 'Shipping address should be required by default.');
+            testExpect(false, 'Shipping address should be required by default.');
         } catch (TamaraValidationException $e) {
-            assert(str_contains($e->getMessage(), 'address'));
+            testExpect(str_contains($e->getMessage(), 'address'));
         }
     }
 
     private function testSingleNameCustomerGetsValidLastName(): void
     {
         $consumer = (new BuilderOrder())->getTamaraConsumer();
-        assert($consumer['first_name'] === 'Single');
-        assert($consumer['last_name'] === 'Single');
+        testExpect($consumer['first_name'] === 'Single');
+        testExpect($consumer['last_name'] === 'Single');
     }
 }

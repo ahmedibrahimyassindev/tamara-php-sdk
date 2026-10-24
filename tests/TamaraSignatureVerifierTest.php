@@ -32,8 +32,8 @@ class TamaraSignatureVerifierTest
         $token = TamaraSignatureVerifier::generateToken($payload, $secret);
         $decoded = $verifier->verify($token);
 
-        assert($decoded['order_id'] === 'ord-123', 'Decoded claims must match');
-        assert($decoded['iss'] === 'Tamara', 'Issuer must match');
+        testExpect($decoded['order_id'] === 'ord-123', 'Decoded claims must match');
+        testExpect($decoded['iss'] === 'Tamara', 'Issuer must match');
     }
 
     protected function testInvalidSignatureFailsClosed(): void
@@ -49,9 +49,9 @@ class TamaraSignatureVerifierTest
             $verifier->verify($token);
         } catch (TamaraSecurityException $e) {
             $caught = true;
-            assert(str_contains($e->getMessage(), 'signature mismatch'), 'Must report signature mismatch');
+            testExpect(str_contains($e->getMessage(), 'signature mismatch'), 'Must report signature mismatch');
         }
-        assert($caught, 'Must throw exception on invalid signature');
+        testExpect($caught, 'Must throw exception on invalid signature');
     }
 
     protected function testExpiredTokenFailsClosed(): void
@@ -69,9 +69,9 @@ class TamaraSignatureVerifierTest
             $verifier->verify($token);
         } catch (TamaraSecurityException $e) {
             $caught = true;
-            assert(str_contains($e->getMessage(), 'expired'), 'Must report expired token');
+            testExpect(str_contains($e->getMessage(), 'expired'), 'Must report expired token');
         }
-        assert($caught, 'Must throw exception on expired token');
+        testExpect($caught, 'Must throw exception on expired token');
     }
 
     protected function testMalformedTokenFailsClosed(): void
@@ -84,7 +84,7 @@ class TamaraSignatureVerifierTest
         } catch (TamaraSecurityException $e) {
             $caught = true;
         }
-        assert($caught, 'Must throw exception on malformed token');
+        testExpect($caught, 'Must throw exception on malformed token');
     }
 
     protected function testInsecureAlgorithmRejected(): void
@@ -102,18 +102,18 @@ class TamaraSignatureVerifierTest
             $verifier->verify($token);
         } catch (TamaraSecurityException $e) {
             $caught = true;
-            assert(str_contains($e->getMessage(), 'HS256'), 'Must reject non-HS256 algorithms');
+            testExpect(str_contains($e->getMessage(), 'HS256'), 'Must reject non-HS256 algorithms');
         }
-        assert($caught, 'Must reject none algorithm');
+        testExpect($caught, 'Must reject none algorithm');
     }
 
     protected function testTokenExtraction(): void
     {
         $raw = 'my-jwt-token';
-        assert(TamaraSignatureVerifier::extractToken($raw) === 'my-jwt-token');
-        assert(TamaraSignatureVerifier::extractToken(authHeader: 'Bearer my-jwt-token') === 'my-jwt-token');
-        assert(TamaraSignatureVerifier::extractToken(query: ['tamaraToken' => 'my-jwt-token']) === 'my-jwt-token');
-        assert(TamaraSignatureVerifier::extractToken(query: 'tamaraToken=my-jwt-token&foo=bar') === 'my-jwt-token');
+        testExpect(TamaraSignatureVerifier::extractToken($raw) === 'my-jwt-token');
+        testExpect(TamaraSignatureVerifier::extractToken(authHeader: 'Bearer my-jwt-token') === 'my-jwt-token');
+        testExpect(TamaraSignatureVerifier::extractToken(query: ['tamaraToken' => 'my-jwt-token']) === 'my-jwt-token');
+        testExpect(TamaraSignatureVerifier::extractToken(query: 'tamaraToken=my-jwt-token&foo=bar') === 'my-jwt-token');
     }
 }
 

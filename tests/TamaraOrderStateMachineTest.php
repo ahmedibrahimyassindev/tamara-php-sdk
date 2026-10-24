@@ -17,33 +17,33 @@ class TamaraOrderStateMachineTest
     protected function testAllowedTransitions(): void
     {
         // new -> approved -> authorised -> fully_captured
-        assert(TamaraOrderStateMachine::canTransition('new', 'approved'));
-        assert(TamaraOrderStateMachine::canTransition('approved', 'authorised'));
-        assert(TamaraOrderStateMachine::canTransition('authorised', 'fully_captured'));
-        assert(TamaraOrderStateMachine::canTransition('fully_captured', 'refunded'));
+        testExpect(TamaraOrderStateMachine::canTransition('new', 'approved'));
+        testExpect(TamaraOrderStateMachine::canTransition('approved', 'authorised'));
+        testExpect(TamaraOrderStateMachine::canTransition('authorised', 'fully_captured'));
+        testExpect(TamaraOrderStateMachine::canTransition('fully_captured', 'refunded'));
     }
 
     protected function testTerminalStatesCannotBeOverwritten(): void
     {
         // Terminal states cannot transition to anything
-        assert(!TamaraOrderStateMachine::canTransition('declined', 'approved'));
-        assert(!TamaraOrderStateMachine::canTransition('cancelled', 'authorised'));
-        assert(!TamaraOrderStateMachine::canTransition('expired', 'approved'));
-        assert(!TamaraOrderStateMachine::canTransition('refunded', 'captured'));
+        testExpect(!TamaraOrderStateMachine::canTransition('declined', 'approved'));
+        testExpect(!TamaraOrderStateMachine::canTransition('cancelled', 'authorised'));
+        testExpect(!TamaraOrderStateMachine::canTransition('expired', 'approved'));
+        testExpect(!TamaraOrderStateMachine::canTransition('refunded', 'captured'));
     }
 
     protected function testOutofOrderTransitionsBlocked(): void
     {
         // Older events arriving after newer states must be blocked
-        assert(!TamaraOrderStateMachine::canTransition('fully_captured', 'approved'));
-        assert(!TamaraOrderStateMachine::canTransition('fully_captured', 'authorised'));
-        assert(!TamaraOrderStateMachine::canTransition('fully_captured', 'cancelled'));
+        testExpect(!TamaraOrderStateMachine::canTransition('fully_captured', 'approved'));
+        testExpect(!TamaraOrderStateMachine::canTransition('fully_captured', 'authorised'));
+        testExpect(!TamaraOrderStateMachine::canTransition('fully_captured', 'cancelled'));
     }
 
     protected function testIdempotentTransitionsAllowed(): void
     {
-        assert(TamaraOrderStateMachine::canTransition('authorised', 'authorised'));
-        assert(TamaraOrderStateMachine::canTransition('fully_captured', 'captured'));
+        testExpect(TamaraOrderStateMachine::canTransition('authorised', 'authorised'));
+        testExpect(TamaraOrderStateMachine::canTransition('fully_captured', 'captured'));
     }
 }
 
