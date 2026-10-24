@@ -123,7 +123,7 @@ trait TamaraOrderableTrait
             return false;
         }
 
-        $this->tamara_status = TamaraOrderStateMachine::normalizeStatus($newStatus);
+        $this->setTamaraAttribute('tamara_status', TamaraOrderStateMachine::normalizeStatus($newStatus));
 
         if (method_exists($this, 'save')) {
             $this->save();
@@ -134,9 +134,22 @@ trait TamaraOrderableTrait
 
     public function onTamaraCheckoutCreated(string $orderId, ?string $checkoutId, ?string $referenceId): void
     {
-        $this->tamara_order_id    = $orderId;
-        $this->tamara_checkout_id = $checkoutId;
+        $this->setTamaraAttribute('tamara_order_id', $orderId);
+        $this->setTamaraAttribute('tamara_checkout_id', $checkoutId);
         $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_NEW);
+    }
+
+    /** Avoid PHP 8.2 dynamic-property deprecations on plain entities. */
+    protected function setTamaraAttribute(string $property, $value): void
+    {
+        if (property_exists($this, $property) || method_exists($this, '__set')) {
+            $this->{$property} = $value;
+            return;
+        }
+
+        throw new \Tamara\Exceptions\TamaraValidationException(
+            "Declare {$property} on the order entity or provide magic attribute support."
+        );
     }
 
     /**

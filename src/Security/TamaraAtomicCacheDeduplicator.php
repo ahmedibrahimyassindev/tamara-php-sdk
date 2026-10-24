@@ -14,7 +14,7 @@ class TamaraAtomicCacheDeduplicator implements TamaraAtomicDeduplicatorInterface
 
     public function __construct(object $cache, int $ttl = 86400, string $prefix = 'tamara:webhook:')
     {
-        foreach (['has', 'add', 'put', 'forget'] as $method) {
+        foreach (['get', 'add', 'put', 'forget'] as $method) {
             if (!method_exists($cache, $method)) {
                 throw new \InvalidArgumentException("Cache repository must implement {$method}().");
             }
@@ -26,17 +26,17 @@ class TamaraAtomicCacheDeduplicator implements TamaraAtomicDeduplicatorInterface
 
     public function isProcessed(string $eventKey): bool
     {
-        return (bool) $this->cache->has($this->key($eventKey));
+        return $this->cache->get($this->key($eventKey)) === 'processed';
     }
 
     public function markProcessed(string $eventKey, int $ttl = 86400): void
     {
-        $this->cache->put($this->key($eventKey), 1, max(1, $ttl ?: $this->ttl));
+        $this->cache->put($this->key($eventKey), 'processed', max(1, $ttl ?: $this->ttl));
     }
 
-    public function claim(string $eventKey, int $ttl = 86400): bool
+    public function claim(string $eventKey, int $ttl = 300): bool
     {
-        return (bool) $this->cache->add($this->key($eventKey), 1, max(1, $ttl > 0 ? $ttl : $this->ttl));
+        return (bool) $this->cache->add($this->key($eventKey), 'processing', max(1, $ttl > 0 ? $ttl : 300));
     }
 
     public function release(string $eventKey): void

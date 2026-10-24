@@ -294,12 +294,14 @@ class TamaraWebhookProcessor
 
         $claimed = false;
         if ($this->deduplicator instanceof TamaraAtomicDeduplicatorInterface) {
-            if (!$this->deduplicator->claim($eventKey)) {
+            if (!$this->deduplicator->claim($eventKey, 300)) {
+                $alreadyProcessed = $this->deduplicator->isProcessed($eventKey);
                 return [
-                    'success' => true,
-                    'http_status' => 200,
-                    'duplicate' => true,
-                    'message' => 'Duplicate webhook event already claimed',
+                    'success' => $alreadyProcessed,
+                    'http_status' => $alreadyProcessed ? 200 : 503,
+                    'duplicate' => $alreadyProcessed,
+                    'retry' => !$alreadyProcessed,
+                    'message' => $alreadyProcessed ? 'Duplicate webhook event already processed' : 'Webhook event is already being processed',
                 ];
             }
             $claimed = true;
@@ -355,7 +357,7 @@ class TamaraWebhookProcessor
         }
 
         // 8. Deduplication: Mark Event as Processed
-        if ($this->deduplicator && !$claimed) {
+        if ($this->deduplicator) {
             $this->deduplicator->markProcessed($eventKey);
         }
 
@@ -460,7 +462,7 @@ class TamaraWebhookProcessor
             ? ($data['data']['captured_amount']['amount'] ?? null)
             : ($data['data']['refunded_amount']['amount'] ?? null);
         if (is_numeric($amountData) && (float) $amountData < $entity->getTamaraAmount()) {
-            return $eventType === 'order_captured'
+            return in_array($eventType, ['order_captured', 'order_fully_captured'], true)
                 ? TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED
                 : TamaraOrderStateMachine::STATUS_PARTIALLY_REFUNDED;
         }

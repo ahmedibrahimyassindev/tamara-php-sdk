@@ -48,6 +48,7 @@ class FakeLaravelCacheRepository
 {
     private $values = [];
     public function has(string $key): bool { return array_key_exists($key, $this->values); }
+    public function get(string $key, $default = null) { return $this->values[$key] ?? $default; }
     public function add(string $key, $value, int $ttl = 0): bool
     {
         if ($this->has($key)) { return false; }

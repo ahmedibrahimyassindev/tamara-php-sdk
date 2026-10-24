@@ -69,6 +69,8 @@ class TamaraWebhookProcessorTest
         $this->testAutoAuthoriseAndFailureResponse();
         $this->testAuthorisedEventIsNotDispatchedTwice();
         $this->testPartialCaptureAndRefundTransitions();
+        $this->testProcessingLeaseReturnsRetryableStatus();
+        $this->testFullyCapturedEventCanResolveToPartialFromApproved();
         $this->testRawPayloadStorageDisabledByDefault();
     }
 
@@ -340,6 +342,39 @@ class TamaraWebhookProcessorTest
             $expected = $remoteStatus === 'fully_refunded' ? 'refunded' : $remoteStatus;
             testExpect($order->getTamaraStatus() === $expected, "{$eventId}: expected {$expected}, got " . (string) $order->getTamaraStatus());
         }
+    }
+
+    protected function testProcessingLeaseReturnsRetryableStatus(): void
+    {
+        $secret = 'test-secret';
+        $dedup = new TamaraInMemoryDeduplicator();
+        $processor = new TamaraWebhookProcessor(deduplicator: $dedup);
+        $processor->setNotificationToken($secret);
+        $processor->addResolver(fn($ref) => new MockOrder());
+        $payload = ['event_id' => 'lease-event', 'order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_approved'];
+        $eventKey = 'tamara:event:lease-event';
+        testExpect($dedup->claim($eventKey, 300));
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+        $result = $processor->process($payload, json_encode($payload), token: $token);
+        testExpect($result['success'] === false && $result['http_status'] === 503 && $result['retry'] === true);
+    }
+
+    protected function testFullyCapturedEventCanResolveToPartialFromApproved(): void
+    {
+        $secret = 'test-secret';
+        $order = new MockOrder();
+        $order->tamara_status = 'approved';
+        $processor = new TamaraWebhookProcessor();
+        $processor->setNotificationToken($secret);
+        $processor->addResolver(fn($ref) => $order);
+        $payload = [
+            'order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_fully_captured',
+            'data' => ['capture_id' => 'capture-low', 'captured_amount' => ['amount' => 50, 'currency' => 'SAR']],
+        ];
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+        $result = $processor->process($payload, json_encode($payload), token: $token);
+        testExpect($result['success'] === true);
+        testExpect($order->getTamaraStatus() === 'partially_captured');
     }
 
     protected function testRawPayloadStorageDisabledByDefault(): void

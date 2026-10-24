@@ -7,7 +7,7 @@ namespace Tamara\Security;
  */
 class TamaraInMemoryDeduplicator implements TamaraAtomicDeduplicatorInterface
 {
-    /** @var array<string, int> Map of eventKey => expiresAt timestamp */
+    /** @var array<string, array{expires:int,state:string}> */
     protected $processed = [];
 
     public function isProcessed(string $eventKey): bool
@@ -16,25 +16,25 @@ class TamaraInMemoryDeduplicator implements TamaraAtomicDeduplicatorInterface
             return false;
         }
 
-        if (time() > $this->processed[$eventKey]) {
+        if (time() > $this->processed[$eventKey]['expires']) {
             unset($this->processed[$eventKey]);
             return false;
         }
 
-        return true;
+        return $this->processed[$eventKey]['state'] === 'processed';
     }
 
     public function markProcessed(string $eventKey, int $ttl = 86400): void
     {
-        $this->processed[$eventKey] = time() + $ttl;
+        $this->processed[$eventKey] = ['expires' => time() + $ttl, 'state' => 'processed'];
     }
 
     public function claim(string $eventKey, int $ttl = 0): bool
     {
-        if ($this->isProcessed($eventKey)) {
+        if (isset($this->processed[$eventKey]) && time() <= $this->processed[$eventKey]['expires']) {
             return false;
         }
-        $this->markProcessed($eventKey, $ttl > 0 ? $ttl : 86400);
+        $this->processed[$eventKey] = ['expires' => time() + ($ttl > 0 ? $ttl : 300), 'state' => 'processing'];
         return true;
     }
 
