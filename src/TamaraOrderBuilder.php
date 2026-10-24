@@ -13,6 +13,7 @@ class TamaraOrderBuilder
 {
     /** @var bool Whether to run strict financial validation on built payload */
     protected $validateAmounts = true;
+    protected $requiresShippingAddress = true;
 
     public function __construct(bool $validateAmounts = true)
     {
@@ -66,17 +67,28 @@ class TamaraOrderBuilder
                 'failure' => $failureUrl,
                 'cancel'  => $cancelUrl,
             ],
-            'risk_assessment'    => $entity->getTamaraRiskAssessment(),
         ];
+
+        $riskAssessment = $entity->getTamaraRiskAssessment();
+        if ($riskAssessment !== []) {
+            $payload['risk_assessment'] = $riskAssessment;
+        }
 
         foreach (['ShippingAmount' => 'shipping_amount', 'TaxAmount' => 'tax_amount'] as $method => $key) {
             $getter = 'getTamara' . $method;
-            if (method_exists($entity, $getter)) {
-                $payload[$key] = ['amount' => (float) $entity->$getter(), 'currency' => $currency];
-            }
+            $payload[$key] = [
+                'amount' => method_exists($entity, $getter) ? (float) $entity->$getter() : 0.0,
+                'currency' => $currency,
+            ];
         }
         if (method_exists($entity, 'getTamaraDiscount')) {
-            $payload['discount'] = ['amount' => ['amount' => (float) $entity->getTamaraDiscount(), 'currency' => $currency]];
+            $discount = (float) $entity->getTamaraDiscount();
+            if ($discount > 0) {
+                $payload['discount'] = [
+                    'name' => method_exists($entity, 'getTamaraDiscountName') ? (string) $entity->getTamaraDiscountName() : 'Discount',
+                    'amount' => ['amount' => $discount, 'currency' => $currency],
+                ];
+            }
         }
 
         if ($notificationUrl !== null) {
@@ -84,11 +96,13 @@ class TamaraOrderBuilder
         }
 
         $address = $entity->getTamaraAddress();
-        if (empty($address)) {
+        if (empty($address) && $this->requiresShippingAddress) {
             throw new TamaraValidationException('A billing and shipping address is required for Tamara checkout.');
         }
-        $payload['billing_address'] = $address;
-        $payload['shipping_address'] = $address;
+        if (!empty($address)) {
+            $payload['billing_address'] = $address;
+            $payload['shipping_address'] = $address;
+        }
 
         if ($this->validateAmounts) {
             TamaraPaymentValidator::validateCheckoutPayload($payload);
@@ -103,6 +117,12 @@ class TamaraOrderBuilder
     public function setValidateAmounts(bool $validate): self
     {
         $this->validateAmounts = $validate;
+        return $this;
+    }
+
+    public function setRequiresShippingAddress(bool $required): self
+    {
+        $this->requiresShippingAddress = $required;
         return $this;
     }
 

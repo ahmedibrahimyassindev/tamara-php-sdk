@@ -9,6 +9,8 @@ $testClasses = [
     \Tamara\Tests\TamaraSanitizerTest::class,
     \Tamara\Tests\TamaraOrderReferenceTest::class,
     \Tamara\Tests\TamaraWebhookProcessorTest::class,
+    \Tamara\Tests\TamaraOrderBuilderTest::class,
+    \Tamara\Tests\TamaraClientTest::class,
 ];
 
 echo "==========================================\n";

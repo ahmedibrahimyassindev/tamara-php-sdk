@@ -5,6 +5,7 @@ namespace Tamara;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Tamara\Contracts\TamaraOrderableInterface;
+use Tamara\Exceptions\TamaraApiException;
 use Tamara\Exceptions\TamaraSecurityException;
 use Tamara\Exceptions\TamaraWebhookException;
 use Tamara\Security\TamaraDeduplicatorInterface;
@@ -19,7 +20,7 @@ use Tamara\Security\TamaraSignatureVerifier;
  *  - Rejects malformed or unexpected payloads
  *  - Validates and enforces state machine transitions against out-of-order events
  *  - Deduplicates events to prevent duplicate processing
- *  - Rejects unsupported/unknown event types fail-closed
+ *  - Acknowledges unsupported event types without retrying them
  *  - Disables unredacted raw payload storage by default
  *  - Prevents sensitive data leakage in logs
  */
@@ -228,8 +229,8 @@ class TamaraWebhookProcessor
         if (!$hasMethodHandler && !$hasCustomHandler) {
             $this->logger->warning("Tamara Webhook: Unsupported or unhandled event type [{$eventType}]");
             return [
-                'success' => false, 'http_status' => 400,
-                'error'   => "Unsupported or unhandled webhook event type [{$eventType}]",
+                'success' => true, 'http_status' => 200, 'ignored' => true,
+                'message' => 'Unsupported webhook event ignored',
             ];
         }
 
@@ -239,6 +240,7 @@ class TamaraWebhookProcessor
             $this->logger->info("Tamara Webhook: Duplicate event [{$eventKey}] ignored.");
             return [
                 'success'   => true,
+                'http_status' => 200,
                 'duplicate' => true,
                 'message'   => 'Duplicate webhook event already processed',
             ];
@@ -255,6 +257,18 @@ class TamaraWebhookProcessor
         $targetStatus  = self::EVENT_TO_STATUS[$eventType] ?? null;
         $currentStatus = method_exists($entity, 'getTamaraStatus') ? $entity->getTamaraStatus() : null;
 
+        if ($this->isPrematureEvent($eventType, $currentStatus)) {
+            $this->logger->warning(sprintf(
+                'Tamara Webhook: Capture event arrived before authorisation for order [%s].',
+                $orderReferenceId
+            ));
+            return [
+                'success' => false,
+                'http_status' => 409,
+                'message' => 'Capture event arrived before the order was authorised',
+            ];
+        }
+
         if ($targetStatus !== null && !TamaraOrderStateMachine::canTransition($currentStatus, $targetStatus)) {
             $this->logger->warning(sprintf(
                 'Tamara Webhook: Out-of-order transition rejected. Order [%s] in status [%s] cannot transition to [%s] via [%s].',
@@ -264,16 +278,31 @@ class TamaraWebhookProcessor
                 $eventType
             ));
             return [
-                'success' => false, 'http_status' => 409,
+                'success' => true,
+                'http_status' => 200,
                 'ignored' => true,
-                'message' => 'Out-of-order event ignored: illegal state transition',
+                'message' => 'Obsolete event ignored',
             ];
         }
 
         // 7. Dispatch to Entity or Custom Handler
         $this->dispatch($entity, $eventType, $data);
         if ($eventType === 'order_approved' && $this->autoAuthorise) {
-            ($this->authoriser)($orderId);
+            try {
+                ($this->authoriser)($orderId);
+                $entity->onTamaraAuthorised($data);
+            } catch (TamaraApiException $e) {
+                $this->logger->error('Tamara auto-authorisation failed.', [
+                    'order_reference_id' => $orderReferenceId,
+                    'http_status' => $e->getHttpStatusCode(),
+                ]);
+                return ['success' => false, 'http_status' => 502, 'error' => 'Tamara auto-authorisation failed'];
+            } catch (\Throwable $e) {
+                $this->logger->error('Tamara auto-authorisation failed unexpectedly.', [
+                    'order_reference_id' => $orderReferenceId,
+                ]);
+                return ['success' => false, 'http_status' => 502, 'error' => 'Tamara auto-authorisation failed'];
+            }
         }
 
         // 8. Deduplication: Mark Event as Processed
@@ -343,6 +372,13 @@ class TamaraWebhookProcessor
         }
 
         return sprintf('tamara:event:%s:%s', $orderId, $eventType);
+    }
+
+    protected function isPrematureEvent(string $eventType, ?string $currentStatus): bool
+    {
+        $current = $currentStatus === null ? null : TamaraOrderStateMachine::normalizeStatus($currentStatus);
+        return in_array($eventType, ['order_captured', 'order_fully_captured'], true)
+            && in_array($current, [null, TamaraOrderStateMachine::STATUS_NEW, TamaraOrderStateMachine::STATUS_APPROVED], true);
     }
 
     /**

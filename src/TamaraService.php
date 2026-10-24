@@ -129,9 +129,18 @@ class TamaraService
         return $this->client->getOrder($orderId);
     }
 
-    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = [], array $shippingInfo = []): array
+    public function capturePayment(
+        string $orderId,
+        float $amount,
+        string $currency = 'SAR',
+        array $items = [],
+        array $shippingInfo = [],
+        float $shippingAmount = 0.0,
+        float $taxAmount = 0.0,
+        float $discountAmount = 0.0
+    ): array
     {
-        return $this->client->capturePayment($orderId, $amount, $currency, $items, $shippingInfo);
+        return $this->client->capturePayment($orderId, $amount, $currency, $items, $shippingInfo, $shippingAmount, $taxAmount, $discountAmount);
     }
 
     public function cancelOrder(string $orderId, array $data = []): array

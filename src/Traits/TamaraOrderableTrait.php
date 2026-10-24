@@ -48,7 +48,7 @@ trait TamaraOrderableTrait
 
         $consumer = [
             'first_name' => $parts[0] ?? '',
-            'last_name' => $parts[1] ?? '',
+            'last_name' => $parts[1] ?? ($parts[0] ?? ''),
             'email' => (string) ($this->customer_email ?? $this->email ?? ''),
             'phone_number' => (string) ($this->customer_phone ?? $this->phone ?? ''),
         ];
@@ -80,7 +80,22 @@ trait TamaraOrderableTrait
 
     public function getTamaraAddress(): array
     {
-        throw new \Tamara\Exceptions\TamaraValidationException('Implement getTamaraAddress() with a valid billing/shipping address before checkout.');
+        return [];
+    }
+
+    public function getTamaraShippingAmount(): float
+    {
+        return 0.0;
+    }
+
+    public function getTamaraTaxAmount(): float
+    {
+        return 0.0;
+    }
+
+    public function getTamaraDiscount(): float
+    {
+        return 0.0;
     }
 
     public function getTamaraRiskAssessment(): array

@@ -185,10 +185,17 @@ $service->capturePayment($tamaraOrderId, $amount, 'SAR', $items, $shippingInfo);
 $service->cancelOrder($tamaraOrderId);
 ```
 
-For capture, `$shippingInfo` must include fulfillment details such as `shipped_at`,
-`shipping_company`, `tracking_number`, and `tracking_url` where available. Implement
-optional `getTamaraShippingAmount()`, `getTamaraTaxAmount()`, and
-`getTamaraDiscount()` methods on your order model when those amounts apply.
+For capture, `$shippingInfo` must include `shipped_at`, `shipping_company`,
+`tracking_number`, and `tracking_url`. The method also accepts optional shipping, tax,
+and discount amounts after `$shippingInfo`. Tamara cancellation is allowed only while
+the order is authorised; the SDK checks the remote order status before calling cancel.
+
+The order builder requires an address by default. For digital services, inject a builder
+configured with `(new TamaraOrderBuilder())->setRequiresShippingAddress(false)` into
+`TamaraService`. The builder sends
+zero shipping and tax amounts when the order does not define
+`getTamaraShippingAmount()` or `getTamaraTaxAmount()`. A positive discount is included
+only when the order defines `getTamaraDiscount()`, and its payload includes a name.
 
 ---
 

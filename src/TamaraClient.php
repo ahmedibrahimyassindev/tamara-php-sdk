@@ -7,6 +7,8 @@ use Psr\Log\NullLogger;
 use Tamara\Exceptions\TamaraApiException;
 use Tamara\Exceptions\TamaraException;
 use Tamara\Exceptions\TamaraSecurityException;
+use Tamara\Exceptions\TamaraValidationException;
+use Tamara\Security\TamaraOrderStateMachine;
 use Tamara\Security\TamaraSanitizer;
 use Tamara\Security\TamaraSignatureVerifier;
 
@@ -133,13 +135,28 @@ class TamaraClient
      * @param float $amount
      * @param string $currency
      * @param array $items
+     * @param array $shippingInfo Required fulfillment metadata
+     * @param float $shippingAmount
+     * @param float $taxAmount
+     * @param float $discountAmount
      * @return array
      * @throws TamaraApiException
      */
-    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = [], array $shippingInfo = []): array
+    public function capturePayment(
+        string $orderId,
+        float $amount,
+        string $currency = 'SAR',
+        array $items = [],
+        array $shippingInfo = [],
+        float $shippingAmount = 0.0,
+        float $taxAmount = 0.0,
+        float $discountAmount = 0.0
+    ): array
     {
-        if ($shippingInfo === []) {
-            throw new \Tamara\Exceptions\TamaraValidationException('Tamara capture requires shipping_info.');
+        foreach (['shipped_at', 'shipping_company', 'tracking_number', 'tracking_url'] as $field) {
+            if (!isset($shippingInfo[$field]) || !is_string($shippingInfo[$field]) || trim($shippingInfo[$field]) === '') {
+                throw new TamaraValidationException("Tamara capture shipping_info requires a non-empty {$field}.");
+            }
         }
         $data = [
             'order_id' => $orderId,
@@ -149,6 +166,9 @@ class TamaraClient
             ],
             'shipping_info' => $shippingInfo,
             'items' => $items,
+            'shipping_amount' => ['amount' => $shippingAmount, 'currency' => $currency],
+            'tax_amount' => ['amount' => $taxAmount, 'currency' => $currency],
+            'discount_amount' => ['amount' => $discountAmount, 'currency' => $currency],
         ];
 
         $response = $this->request('/payments/capture', 'POST', $data);
@@ -171,6 +191,10 @@ class TamaraClient
      */
     public function cancelOrder(string $orderId, array $data = []): array
     {
+        $order = $this->getOrder($orderId);
+        if (TamaraOrderStateMachine::normalizeStatus((string) ($order['status'] ?? '')) !== TamaraOrderStateMachine::STATUS_AUTHORISED) {
+            throw new TamaraValidationException('Tamara cancellation is only allowed for authorised orders.');
+        }
         $response = $this->request('/orders/' . rawurlencode($orderId) . '/cancel', 'POST', $data);
 
         if ($response['status'] === 200) {
