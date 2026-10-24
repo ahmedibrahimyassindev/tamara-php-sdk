@@ -56,12 +56,23 @@ class ServiceAuthoriseClient extends TamaraClient
     }
 }
 
+class CheckoutTrackingClient extends TamaraClient
+{
+    public $checkoutCalls = 0;
+    public function createCheckout(array $payload): array
+    {
+        $this->checkoutCalls++;
+        return ['order_id' => 'tamara-order', 'checkout_id' => 'checkout', 'checkout_url' => 'https://checkout.test'];
+    }
+}
+
 class TamaraServiceTest
 {
     public function run(): void
     {
         $this->testAuthoriseTreatsAlreadyAuthorisedAsSuccess();
         $this->testWebhookProcessorAuthoriserWiring();
+        $this->testCheckoutPersistenceIsCheckedBeforeRemoteCall();
     }
 
     private function testAuthoriseTreatsAlreadyAuthorisedAsSuccess(): void
@@ -113,5 +124,23 @@ class TamaraServiceTest
         testExpect($second['success'] === true);
         testExpect($flakyOrder->getTamaraStatus() === 'authorised');
         testExpect($retryClient->authoriseCalls === 2);
+    }
+
+    private function testCheckoutPersistenceIsCheckedBeforeRemoteCall(): void
+    {
+        $client = new CheckoutTrackingClient('merchant-token', 'notify-token');
+        $order = new class implements TamaraOrderableInterface {
+            use TamaraOrderableTrait;
+            public $order_reference_id = 'plain-order';
+            public function getTamaraAmount(): float { return 20.0; }
+            public function getTamaraAddress(): array { return ['line1' => '1 Main St', 'city' => 'Riyadh']; }
+            public function onTamaraRawPayload(string $rawPayload): void {}
+        };
+        try {
+            (new TamaraService($client))->initiateCheckout($order, 'https://shop.test/s', 'https://shop.test/f', 'https://shop.test/c');
+            testExpect(false, 'Checkout should fail before remote creation when identifiers cannot be stored.');
+        } catch (\Tamara\Exceptions\TamaraValidationException $e) {
+            testExpect($client->checkoutCalls === 0);
+        }
     }
 }

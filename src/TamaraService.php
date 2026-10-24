@@ -96,6 +96,10 @@ class TamaraService
         string $locale = 'ar_SA',
         string $description = 'Online Order'
     ): string {
+        if (method_exists($entity, 'assertTamaraCheckoutPersistenceReady')) {
+            $entity->assertTamaraCheckoutPersistenceReady();
+        }
+
         $payload = $this->builder->build(
             $entity,
             $successUrl,

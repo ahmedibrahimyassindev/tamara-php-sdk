@@ -75,6 +75,8 @@ class Order extends \Illuminate\Database\Eloquent\Model implements TamaraOrderab
 }
 ```
 
+The entity must be able to persist `tamara_order_id` and `tamara_checkout_id` when using `TamaraOrderableTrait`. Eloquent models can use corresponding database attributes (or their supported dynamic attributes); plain PHP entities should declare both properties. The SDK checks this before creating a Tamara checkout, so a configuration mistake cannot leave an unrecorded remote session.
+
 ### 2. Create Checkout Session
 
 ```php

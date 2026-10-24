@@ -24,7 +24,7 @@ class TamaraCallbackDeduplicator implements TamaraDeduplicatorInterface
         return (bool) ($this->checkCallback)($eventKey);
     }
 
-    public function markProcessed(string $eventKey, int $ttl = 86400): void
+    public function markProcessed(string $eventKey, int $ttl = 0): void
     {
         ($this->storeCallback)($eventKey, $ttl);
     }

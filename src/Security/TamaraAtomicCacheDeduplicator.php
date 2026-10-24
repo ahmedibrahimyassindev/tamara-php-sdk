@@ -29,7 +29,7 @@ class TamaraAtomicCacheDeduplicator implements TamaraAtomicDeduplicatorInterface
         return $this->cache->get($this->key($eventKey)) === 'processed';
     }
 
-    public function markProcessed(string $eventKey, int $ttl = 86400): void
+    public function markProcessed(string $eventKey, int $ttl = 0): void
     {
         $this->cache->put($this->key($eventKey), 'processed', max(1, $ttl ?: $this->ttl));
     }

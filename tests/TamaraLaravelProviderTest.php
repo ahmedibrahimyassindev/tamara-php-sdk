@@ -47,6 +47,7 @@ class FakeLaravelApp implements ArrayAccess
 class FakeLaravelCacheRepository
 {
     private $values = [];
+    public $lastPutTtl = null;
     public function has(string $key): bool { return array_key_exists($key, $this->values); }
     public function get(string $key, $default = null) { return $this->values[$key] ?? $default; }
     public function add(string $key, $value, int $ttl = 0): bool
@@ -55,7 +56,7 @@ class FakeLaravelCacheRepository
         $this->values[$key] = $value;
         return true;
     }
-    public function put(string $key, $value, int $ttl = 0): void { $this->values[$key] = $value; }
+    public function put(string $key, $value, int $ttl = 0): void { $this->values[$key] = $value; $this->lastPutTtl = $ttl; }
     public function forget(string $key): bool { unset($this->values[$key]); return true; }
 }
 
@@ -76,6 +77,7 @@ class TamaraLaravelProviderTest
             'sandbox' => true,
             'auto_authorise' => true,
             'requires_shipping_address' => false,
+            'webhook_deduplication_ttl' => 43210,
         ]);
         (new TamaraServiceProvider($app))->register();
 
@@ -94,5 +96,7 @@ class TamaraLaravelProviderTest
         testExpect($deduplicator instanceof TamaraAtomicCacheDeduplicator);
         testExpect($deduplicator->claim('same-event') === true);
         testExpect($deduplicator->claim('same-event') === false);
+        $deduplicator->markProcessed('ttl-event');
+        testExpect($app->cache->repository->lastPutTtl === 43210);
     }
 }

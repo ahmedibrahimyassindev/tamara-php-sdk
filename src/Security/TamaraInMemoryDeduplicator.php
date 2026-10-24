@@ -24,9 +24,9 @@ class TamaraInMemoryDeduplicator implements TamaraAtomicDeduplicatorInterface
         return $this->processed[$eventKey]['state'] === 'processed';
     }
 
-    public function markProcessed(string $eventKey, int $ttl = 86400): void
+    public function markProcessed(string $eventKey, int $ttl = 0): void
     {
-        $this->processed[$eventKey] = ['expires' => time() + $ttl, 'state' => 'processed'];
+        $this->processed[$eventKey] = ['expires' => time() + ($ttl > 0 ? $ttl : 86400), 'state' => 'processed'];
     }
 
     public function claim(string $eventKey, int $ttl = 0): bool

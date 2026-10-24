@@ -139,6 +139,18 @@ trait TamaraOrderableTrait
         $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_NEW);
     }
 
+    /** Validate that checkout identifiers can be persisted before creating a remote session. */
+    public function assertTamaraCheckoutPersistenceReady(): void
+    {
+        foreach (['tamara_order_id', 'tamara_checkout_id'] as $property) {
+            if (!property_exists($this, $property) && !method_exists($this, '__set')) {
+                throw new \Tamara\Exceptions\TamaraValidationException(
+                    "Declare {$property} on the order entity or provide magic attribute support before starting checkout."
+                );
+            }
+        }
+    }
+
     /** Avoid PHP 8.2 dynamic-property deprecations on plain entities. */
     protected function setTamaraAttribute(string $property, $value): void
     {
