@@ -63,6 +63,7 @@ class TamaraService
     {
         $processor = new TamaraWebhookProcessor(null, null, $logger);
         $processor->setAuthoriser(fn (string $orderId) => $this->authoriseOrder($orderId));
+        $processor->setOrderStatusResolver(fn (string $orderId) => $this->getOrder($orderId)['status'] ?? null);
 
         $token = $this->client->getNotificationToken();
         if (!empty($token)) {

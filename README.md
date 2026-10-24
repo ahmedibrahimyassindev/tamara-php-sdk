@@ -38,11 +38,19 @@ TAMARA_NOTIFICATION_TOKEN=your_notification_webhook_secret
 TAMARA_SANDBOX=true # Set to false in production
 TAMARA_AUTO_AUTHORISE=false
 TAMARA_REQUIRES_SHIPPING_ADDRESS=true
+TAMARA_WEBHOOK_DEDUPLICATION_TTL=86400
 ```
 
 In Laravel, `TAMARA_AUTO_AUTHORISE=true` enables authorisation in the webhook
 processor resolved by the service provider. Set `TAMARA_REQUIRES_SHIPPING_ADDRESS=false`
 for checkouts that contain no shippable goods.
+Laravel webhook processing uses the configured cache store for atomic event claims;
+use a persistent shared store such as Redis, database, or file cache in production.
+For capture and refund events, the service-created processor checks Tamara's current
+remote status so multiple partial captures and refunds can advance the local state
+through `partially_captured`, `partially_refunded`, and their completed states. Models
+that do not use `TamaraOrderableTrait` should handle the `_tamara_order_status` callback
+field or implement `onTamaraPartiallyCaptured()` and `onTamaraPartiallyRefunded()`.
 
 ---
 

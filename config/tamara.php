@@ -36,6 +36,9 @@ return [
 
     'requires_shipping_address' => env('TAMARA_REQUIRES_SHIPPING_ADDRESS', true),
 
+    /* Webhook deduplication TTL in seconds. Laravel uses its configured cache store. */
+    'webhook_deduplication_ttl' => env('TAMARA_WEBHOOK_DEDUPLICATION_TTL', 86400),
+
     /*
     |--------------------------------------------------------------------------
     | Default Locale

@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Tamara\TamaraClient;
 use Tamara\TamaraOrderBuilder;
+use Tamara\Security\TamaraAtomicCacheDeduplicator;
 use Tamara\TamaraService;
 use Tamara\TamaraWebhookProcessor;
 
@@ -57,6 +58,10 @@ class TamaraServiceProvider extends ServiceProvider
         $this->app->bind(TamaraWebhookProcessor::class, function ($app) {
             $config = $app['config']->get('tamara', []);
             $processor = $app->make(TamaraService::class)->createWebhookProcessor();
+            $processor->setDeduplicator(new TamaraAtomicCacheDeduplicator(
+                $app['cache']->store(),
+                (int) ($config['webhook_deduplication_ttl'] ?? 86400)
+            ));
             if ((bool) ($config['auto_authorise'] ?? false)) {
                 $processor->autoAuthorise();
             }

@@ -9,6 +9,7 @@ use Tamara\TamaraOrderBuilder;
 use Tamara\TamaraClient;
 use Tamara\TamaraService;
 use Tamara\TamaraWebhookProcessor;
+use Tamara\Security\TamaraAtomicCacheDeduplicator;
 
 class FakeLaravelConfig
 {
@@ -21,10 +22,15 @@ class FakeLaravelConfig
 class FakeLaravelApp implements ArrayAccess
 {
     public $config;
+    public $cache;
     private $bindings = [];
-    public function __construct(array $config) { $this->config = new FakeLaravelConfig(['tamara' => $config]); }
+    public function __construct(array $config)
+    {
+        $this->config = new FakeLaravelConfig(['tamara' => $config]);
+        $this->cache = new FakeLaravelCacheManager();
+    }
     public function offsetExists($offset): bool { return $offset === 'config'; }
-    public function offsetGet($offset): mixed { return $offset === 'config' ? $this->config : null; }
+    public function offsetGet($offset): mixed { return $offset === 'config' ? $this->config : ($offset === 'cache' ? $this->cache : null); }
     public function offsetSet($offset, $value): void {}
     public function offsetUnset($offset): void {}
     public function singleton(string $key, callable $factory): void { $this->bindings[$key] = $factory; }
@@ -36,6 +42,27 @@ class FakeLaravelApp implements ArrayAccess
         if (!isset($this->bindings[$key])) { throw new \RuntimeException("No binding for {$key}"); }
         return ($this->bindings[$key])($this);
     }
+}
+
+class FakeLaravelCacheRepository
+{
+    private $values = [];
+    public function has(string $key): bool { return array_key_exists($key, $this->values); }
+    public function add(string $key, $value, int $ttl = 0): bool
+    {
+        if ($this->has($key)) { return false; }
+        $this->values[$key] = $value;
+        return true;
+    }
+    public function put(string $key, $value, int $ttl = 0): void { $this->values[$key] = $value; }
+    public function forget(string $key): bool { unset($this->values[$key]); return true; }
+}
+
+class FakeLaravelCacheManager
+{
+    public $repository;
+    public function __construct() { $this->repository = new FakeLaravelCacheRepository(); }
+    public function store() { return $this->repository; }
 }
 
 class TamaraLaravelProviderTest
@@ -61,5 +88,10 @@ class TamaraLaravelProviderTest
         $processor = $app->make(TamaraWebhookProcessor::class);
         $processorReflection = new ReflectionProperty(TamaraWebhookProcessor::class, 'autoAuthorise');
         testExpect($processorReflection->getValue($processor) === true);
+        $dedupReflection = new ReflectionProperty(TamaraWebhookProcessor::class, 'deduplicator');
+        $deduplicator = $dedupReflection->getValue($processor);
+        testExpect($deduplicator instanceof TamaraAtomicCacheDeduplicator);
+        testExpect($deduplicator->claim('same-event') === true);
+        testExpect($deduplicator->claim('same-event') === false);
     }
 }

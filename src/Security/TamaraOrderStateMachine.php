@@ -122,6 +122,7 @@ class TamaraOrderStateMachine
         return match ($status) {
             'authorized' => self::STATUS_AUTHORISED,
             'captured', 'paid' => self::STATUS_FULLY_CAPTURED,
+            'fully_refunded' => self::STATUS_REFUNDED,
             'canceled' => self::STATUS_CANCELLED,
             default => $status,
         };

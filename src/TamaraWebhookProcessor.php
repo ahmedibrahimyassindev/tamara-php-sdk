@@ -9,6 +9,7 @@ use Tamara\Exceptions\TamaraApiException;
 use Tamara\Exceptions\TamaraSecurityException;
 use Tamara\Exceptions\TamaraWebhookException;
 use Tamara\Security\TamaraDeduplicatorInterface;
+use Tamara\Security\TamaraAtomicDeduplicatorInterface;
 use Tamara\Security\TamaraInMemoryDeduplicator;
 use Tamara\Security\TamaraOrderStateMachine;
 use Tamara\Security\TamaraSanitizer;
@@ -80,6 +81,7 @@ class TamaraWebhookProcessor
     protected $redactRawPayload = true;
     protected $autoAuthorise = false;
     protected $authoriser = null;
+    protected $orderStatusResolver = null;
 
     public function __construct(
         ?TamaraSignatureVerifier $verifier = null,
@@ -130,6 +132,12 @@ class TamaraWebhookProcessor
     public function setAuthoriser(callable $authoriser): self
     {
         $this->authoriser = $authoriser;
+        return $this;
+    }
+
+    public function setOrderStatusResolver(callable $resolver): self
+    {
+        $this->orderStatusResolver = $resolver;
         return $this;
     }
 
@@ -255,8 +263,18 @@ class TamaraWebhookProcessor
         }
 
         // 6. Protect Against Out-of-Order Events (State Machine Validation)
-        $targetStatus  = self::EVENT_TO_STATUS[$eventType] ?? null;
-        $currentStatus = method_exists($entity, 'getTamaraStatus') ? $entity->getTamaraStatus() : null;
+        try {
+            $targetStatus = $this->resolveTargetStatus($eventType, $data, $entity, $orderId);
+        } catch (Throwable $e) {
+            $this->logger->error('Unable to resolve Tamara remote order status for webhook.', [
+                'order_reference_id' => $orderReferenceId,
+            ]);
+            return ['success' => false, 'http_status' => 502, 'error' => 'Unable to verify Tamara order status'];
+        }
+        $currentStatus = $entity->getTamaraStatus();
+        $autoAuthorisedMarker = $this->autoAuthorisedMarkerKey($orderId);
+        $autoAuthorisedAlreadyDispatched = $this->deduplicator !== null
+            && $this->deduplicator->isProcessed($autoAuthorisedMarker);
 
         if ($targetStatus !== null && !TamaraOrderStateMachine::canTransition($currentStatus, $targetStatus)) {
             $this->logger->warning(sprintf(
@@ -274,18 +292,48 @@ class TamaraWebhookProcessor
             ];
         }
 
+        $claimed = false;
+        if ($this->deduplicator instanceof TamaraAtomicDeduplicatorInterface) {
+            if (!$this->deduplicator->claim($eventKey)) {
+                return [
+                    'success' => true,
+                    'http_status' => 200,
+                    'duplicate' => true,
+                    'message' => 'Duplicate webhook event already claimed',
+                ];
+            }
+            $claimed = true;
+        }
+
+        if ($targetStatus !== null) {
+            $data['_tamara_order_status'] = $targetStatus;
+        }
+
         // 7. Dispatch to Entity or Custom Handler
-        $this->dispatch($entity, $eventType, $data);
+        $skipAuthorisedDispatch = in_array($eventType, ['order_authorised', 'order_authorized'], true)
+            && (TamaraOrderStateMachine::normalizeStatus((string) $currentStatus) === TamaraOrderStateMachine::STATUS_AUTHORISED
+                || $autoAuthorisedAlreadyDispatched);
+        try {
+            if (!$skipAuthorisedDispatch) {
+                $this->dispatch($entity, $eventType, $data);
+            }
+        } catch (Throwable $e) {
+            $this->releaseClaim($eventKey, $claimed);
+            $this->logger->error('Tamara webhook handler failed.', ['order_reference_id' => $orderReferenceId]);
+            return ['success' => false, 'http_status' => 500, 'error' => 'Webhook handler failed'];
+        }
         if ($eventType === 'order_approved' && $this->autoAuthorise) {
             try {
                 ($this->authoriser)($orderId);
             } catch (TamaraApiException $e) {
+                $this->releaseClaim($eventKey, $claimed);
                 $this->logger->error('Tamara auto-authorisation failed.', [
                     'order_reference_id' => $orderReferenceId,
                     'http_status' => $e->getHttpStatusCode(),
                 ]);
                 return ['success' => false, 'http_status' => 502, 'error' => 'Tamara auto-authorisation failed'];
             } catch (\Throwable $e) {
+                $this->releaseClaim($eventKey, $claimed);
                 $this->logger->error('Tamara auto-authorisation failed unexpectedly.', [
                     'order_reference_id' => $orderReferenceId,
                 ]);
@@ -294,7 +342,11 @@ class TamaraWebhookProcessor
 
             try {
                 $this->dispatch($entity, 'order_authorised', $data);
+                if ($this->deduplicator !== null) {
+                    $this->deduplicator->markProcessed($autoAuthorisedMarker, 86400);
+                }
             } catch (Throwable $e) {
+                $this->releaseClaim($eventKey, $claimed);
                 $this->logger->error('Tamara authorisation succeeded remotely but local handling failed.', [
                     'order_reference_id' => $orderReferenceId,
                 ]);
@@ -303,7 +355,7 @@ class TamaraWebhookProcessor
         }
 
         // 8. Deduplication: Mark Event as Processed
-        if ($this->deduplicator) {
+        if ($this->deduplicator && !$claimed) {
             $this->deduplicator->markProcessed($eventKey);
         }
 
@@ -368,7 +420,75 @@ class TamaraWebhookProcessor
             return 'tamara:event:' . $data['event_id'];
         }
 
-        return sprintf('tamara:event:%s:%s', $orderId, $eventType);
+        $eventData = is_array($data['data'] ?? null) ? $data['data'] : [];
+        foreach (['capture_id', 'refund_id', 'cancel_id', 'transaction_id'] as $idField) {
+            if (!empty($eventData[$idField]) && (is_string($eventData[$idField]) || is_numeric($eventData[$idField]))) {
+                return 'tamara:event:' . $eventType . ':' . $idField . ':' . $eventData[$idField];
+            }
+        }
+
+        return 'tamara:event:' . $eventType . ':' . hash('sha256', (string) json_encode($this->canonicalize($data)));
+    }
+
+    protected function resolveTargetStatus(
+        string $eventType,
+        array $data,
+        TamaraOrderableInterface $entity,
+        string $orderId
+    ): ?string {
+        if (!in_array($eventType, ['order_captured', 'order_fully_captured', 'order_refunded'], true)) {
+            return self::EVENT_TO_STATUS[$eventType] ?? null;
+        }
+
+        $remoteStatus = $this->orderStatusResolver !== null
+            ? ($this->orderStatusResolver)($orderId)
+            : null;
+        $remoteStatus = $remoteStatus ?? ($data['status'] ?? ($data['data']['status'] ?? null));
+        if (is_string($remoteStatus)) {
+            $normalized = TamaraOrderStateMachine::normalizeStatus($remoteStatus);
+            if (in_array($normalized, [
+                TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED,
+                TamaraOrderStateMachine::STATUS_FULLY_CAPTURED,
+                TamaraOrderStateMachine::STATUS_PARTIALLY_REFUNDED,
+                TamaraOrderStateMachine::STATUS_REFUNDED,
+            ], true)) {
+                return $normalized;
+            }
+        }
+
+        $amountData = in_array($eventType, ['order_captured', 'order_fully_captured'], true)
+            ? ($data['data']['captured_amount']['amount'] ?? null)
+            : ($data['data']['refunded_amount']['amount'] ?? null);
+        if (is_numeric($amountData) && (float) $amountData < $entity->getTamaraAmount()) {
+            return $eventType === 'order_captured'
+                ? TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED
+                : TamaraOrderStateMachine::STATUS_PARTIALLY_REFUNDED;
+        }
+
+        return self::EVENT_TO_STATUS[$eventType] ?? null;
+    }
+
+    protected function canonicalize(array $value): array
+    {
+        foreach ($value as $key => $nested) {
+            if (is_array($nested)) {
+                $value[$key] = $this->canonicalize($nested);
+            }
+        }
+        ksort($value);
+        return $value;
+    }
+
+    protected function releaseClaim(string $eventKey, bool $claimed): void
+    {
+        if ($claimed && $this->deduplicator instanceof TamaraAtomicDeduplicatorInterface) {
+            $this->deduplicator->release($eventKey);
+        }
+    }
+
+    protected function autoAuthorisedMarkerKey(string $orderId): string
+    {
+        return 'tamara:auto-authorised-handler:' . hash('sha256', $orderId);
     }
 
     /**
@@ -397,6 +517,15 @@ class TamaraWebhookProcessor
 
         if (isset(self::EVENT_MAP[$eventType])) {
             $method = self::EVENT_MAP[$eventType];
+            if (in_array($eventType, ['order_captured', 'order_fully_captured'], true)
+                && ($data['_tamara_order_status'] ?? null) === TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED
+                && method_exists($entity, 'onTamaraPartiallyCaptured')) {
+                $method = 'onTamaraPartiallyCaptured';
+            } elseif ($eventType === 'order_refunded'
+                && ($data['_tamara_order_status'] ?? null) === TamaraOrderStateMachine::STATUS_PARTIALLY_REFUNDED
+                && method_exists($entity, 'onTamaraPartiallyRefunded')) {
+                $method = 'onTamaraPartiallyRefunded';
+            }
             if (method_exists($entity, $method)) {
                 $entity->$method($data);
             }

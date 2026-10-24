@@ -4,6 +4,7 @@ namespace Tamara\Tests;
 
 use Tamara\Exceptions\TamaraValidationException;
 use Tamara\TamaraClient;
+use ReflectionProperty;
 
 class FakeTamaraClient extends TamaraClient
 {
@@ -33,6 +34,7 @@ class TamaraClientTest
     {
         $this->testCaptureEndpointPayloadAndShippingValidation();
         $this->testCancellationRequiresAuthorisedOrder();
+        $this->testConnectTimeoutIsBoundedByRequestTimeout();
     }
 
     private function testCaptureEndpointPayloadAndShippingValidation(): void
@@ -92,5 +94,12 @@ class TamaraClientTest
         } catch (TamaraValidationException $e) {
             testExpect(str_contains($e->getMessage(), 'not in a cancellable state'));
         }
+    }
+
+    private function testConnectTimeoutIsBoundedByRequestTimeout(): void
+    {
+        $client = new FakeTamaraClient('merchant-token', '', false, null, null, 5, 20);
+        $property = new ReflectionProperty(TamaraClient::class, 'connectTimeout');
+        testExpect($property->getValue($client) === 5);
     }
 }

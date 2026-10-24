@@ -67,6 +67,8 @@ class TamaraWebhookProcessorTest
         $this->testOutofOrderEventRejected();
         $this->testCaptureEventAdvancesApprovedOrder();
         $this->testAutoAuthoriseAndFailureResponse();
+        $this->testAuthorisedEventIsNotDispatchedTwice();
+        $this->testPartialCaptureAndRefundTransitions();
         $this->testRawPayloadStorageDisabledByDefault();
     }
 
@@ -266,11 +268,78 @@ class TamaraWebhookProcessorTest
         $failedProcessor = new TamaraWebhookProcessor();
         $failedProcessor->setNotificationToken($secret);
         $failedProcessor->addResolver(fn($ref) => $retryableOrder);
-        $failedProcessor->setAuthoriser(function (): void { throw new TamaraApiException('private api detail', 503); });
+        $authoriseFailures = 0;
+        $failedProcessor->setAuthoriser(function () use (&$authoriseFailures): void {
+            $authoriseFailures++;
+            throw new TamaraApiException('private api detail', 503);
+        });
         $failedProcessor->autoAuthorise();
         $res = $failedProcessor->process(json_decode($payload, true), $payload, token: $token);
         testExpect($res['success'] === false && $res['http_status'] === 502);
         testExpect(!str_contains($res['error'], 'private api detail'));
+        $failedProcessor->process(json_decode($payload, true), $payload, token: $token);
+        testExpect($authoriseFailures === 2, 'Failed atomic claim must be released so webhook retries can retry authorisation.');
+    }
+
+    protected function testAuthorisedEventIsNotDispatchedTwice(): void
+    {
+        $secret = 'test-secret';
+        $order = new MockOrder();
+        $processor = new TamaraWebhookProcessor();
+        $processor->setNotificationToken($secret);
+        $processor->addResolver(fn($ref) => $order);
+        $processor->setAuthoriser(fn(string $orderId) => []);
+        $processor->autoAuthorise();
+        $authorisedHandlerCalls = 0;
+        $processor->on('order_authorised', function ($entity, array $data) use (&$authorisedHandlerCalls): void {
+            $authorisedHandlerCalls++;
+        });
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+
+        $approved = ['event_id' => 'approved-1', 'order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_approved'];
+        $processor->process($approved, json_encode($approved), token: $token);
+        testExpect($order->eventsReceived === ['approved']);
+        testExpect($authorisedHandlerCalls === 1);
+
+        $authorised = ['event_id' => 'authorised-1', 'order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_authorised'];
+        $result = $processor->process($authorised, json_encode($authorised), token: $token);
+        testExpect($result['success'] === true);
+        testExpect($order->eventsReceived === ['approved']);
+        testExpect($authorisedHandlerCalls === 1);
+    }
+
+    protected function testPartialCaptureAndRefundTransitions(): void
+    {
+        $secret = 'test-secret';
+        $order = new MockOrder();
+        $order->tamara_status = 'authorised';
+        $remoteStatus = 'partially_captured';
+        $processor = new TamaraWebhookProcessor();
+        $processor->setNotificationToken($secret);
+        $processor->setOrderStatusResolver(function (string $id) use (&$remoteStatus) { return $remoteStatus; });
+        $processor->addResolver(fn($ref) => $order);
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+
+        foreach ([
+            ['order_captured', 'capture-1', 'partially_captured'],
+            ['order_captured', 'capture-2', 'fully_captured'],
+            ['order_refunded', 'refund-1', 'partially_refunded'],
+            ['order_refunded', 'refund-2', 'fully_refunded'],
+        ] as [$eventType, $eventId, $remoteStatus]) {
+            $payload = [
+                'order_id' => 'ord-1',
+                'order_reference_id' => 'ORD-1001',
+                'event_type' => $eventType,
+                'data' => [
+                    str_contains($eventId, 'capture') ? 'capture_id' : 'refund_id' => $eventId,
+                    str_contains($eventId, 'capture') ? 'captured_amount' : 'refunded_amount' => ['amount' => 50.0, 'currency' => 'SAR'],
+                ],
+            ];
+            $result = $processor->process($payload, json_encode($payload), token: $token);
+            testExpect($result['success'] === true);
+            $expected = $remoteStatus === 'fully_refunded' ? 'refunded' : $remoteStatus;
+            testExpect($order->getTamaraStatus() === $expected, "{$eventId}: expected {$expected}, got " . (string) $order->getTamaraStatus());
+        }
     }
 
     protected function testRawPayloadStorageDisabledByDefault(): void

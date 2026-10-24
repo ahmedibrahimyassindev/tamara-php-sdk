@@ -36,13 +36,17 @@ class TamaraClient
     /** @var int Timeout in seconds */
     protected $timeout;
 
+    /** @var int Connection timeout in seconds */
+    protected $connectTimeout;
+
     public function __construct(
         string $merchantToken,
         string $notificationToken = '',
         bool $sandbox = false,
         ?string $apiUrl = null,
         ?LoggerInterface $logger = null,
-        int $timeout = 30
+        int $timeout = 30,
+        int $connectTimeout = 10
     ) {
         if (empty(trim($merchantToken))) {
             throw new TamaraException('Tamara merchant token cannot be empty.');
@@ -52,7 +56,8 @@ class TamaraClient
         $this->notificationToken = trim($notificationToken);
         $this->apiUrl            = $apiUrl ?? ($sandbox ? self::API_URL_SANDBOX : self::API_URL_PRODUCTION);
         $this->logger            = $logger ?? new NullLogger();
-        $this->timeout           = $timeout;
+        $this->timeout           = max(1, $timeout);
+        $this->connectTimeout    = max(1, min($connectTimeout, $this->timeout));
     }
 
     public function getApiUrl(): string
@@ -266,6 +271,7 @@ class TamaraClient
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
 
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);

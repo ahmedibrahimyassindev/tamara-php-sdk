@@ -166,7 +166,13 @@ trait TamaraOrderableTrait
 
     public function onTamaraCaptured(array $data): void
     {
-        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_FULLY_CAPTURED);
+        $status = $data['_tamara_order_status'] ?? TamaraOrderStateMachine::STATUS_FULLY_CAPTURED;
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::normalizeStatus((string) $status));
+    }
+
+    public function onTamaraPartiallyCaptured(array $data): void
+    {
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_PARTIALLY_CAPTURED);
     }
 
     public function onTamaraDeclined(array $data): void
@@ -186,6 +192,12 @@ trait TamaraOrderableTrait
 
     public function onTamaraRefunded(array $data): void
     {
-        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_REFUNDED);
+        $status = $data['_tamara_order_status'] ?? TamaraOrderStateMachine::STATUS_REFUNDED;
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::normalizeStatus((string) $status));
+    }
+
+    public function onTamaraPartiallyRefunded(array $data): void
+    {
+        $this->transitionTamaraStatus(TamaraOrderStateMachine::STATUS_PARTIALLY_REFUNDED);
     }
 }
