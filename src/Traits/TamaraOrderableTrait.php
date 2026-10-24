@@ -4,7 +4,6 @@ namespace Tamara\Traits;
 
 use Tamara\Security\TamaraOrderStateMachine;
 use Tamara\Security\TamaraSanitizer;
-use Tamara\TamaraService;
 
 /**
  * Reusable trait that implements secure methods for TamaraOrderableInterface.
@@ -22,8 +21,9 @@ trait TamaraOrderableTrait
             return (string) $this->id;
         }
 
-        // Generate cryptographically secure reference ID
-        return TamaraService::generateOrderId('ORD');
+        throw new \Tamara\Exceptions\TamaraValidationException(
+            'Order reference ID is required; persist a stable order_reference_id before checkout.'
+        );
     }
 
     public function getTamaraCurrency(): string
@@ -46,12 +46,18 @@ trait TamaraOrderableTrait
         $fullName = (string) ($this->customer_name ?? $this->name ?? $this->full_name ?? '');
         $parts    = explode(' ', trim($fullName), 2);
 
-        return [
-            'first_name'   => !empty($parts[0]) ? $parts[0] : 'Customer',
-            'last_name'    => !empty($parts[1]) ? $parts[1] : '-',
-            'email'        => (string) ($this->customer_email ?? $this->email ?? ''),
+        $consumer = [
+            'first_name' => $parts[0] ?? '',
+            'last_name' => $parts[1] ?? '',
+            'email' => (string) ($this->customer_email ?? $this->email ?? ''),
             'phone_number' => (string) ($this->customer_phone ?? $this->phone ?? ''),
         ];
+        foreach ($consumer as $field => $value) {
+            if (trim($value) === '') {
+                throw new \Tamara\Exceptions\TamaraValidationException("Customer {$field} is required for Tamara checkout.");
+            }
+        }
+        return $consumer;
     }
 
     public function getTamaraItems(): array
@@ -74,15 +80,12 @@ trait TamaraOrderableTrait
 
     public function getTamaraAddress(): array
     {
-        return [];
+        throw new \Tamara\Exceptions\TamaraValidationException('Implement getTamaraAddress() with a valid billing/shipping address before checkout.');
     }
 
     public function getTamaraRiskAssessment(): array
     {
-        return [
-            'account_creation_date' => date('d-m-Y'),
-            'total_order_count'     => 1,
-        ];
+        return [];
     }
 
     public function getTamaraStatus(): ?string

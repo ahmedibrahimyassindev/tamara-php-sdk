@@ -76,6 +76,8 @@ class TamaraWebhookProcessor
 
     /** @var bool Redact raw payload if storage is enabled */
     protected $redactRawPayload = true;
+    protected $autoAuthorise = false;
+    protected $authoriser = null;
 
     public function __construct(
         ?TamaraSignatureVerifier $verifier = null,
@@ -120,6 +122,21 @@ class TamaraWebhookProcessor
     public function setDeduplicator(?TamaraDeduplicatorInterface $deduplicator): self
     {
         $this->deduplicator = $deduplicator;
+        return $this;
+    }
+
+    public function setAuthoriser(callable $authoriser): self
+    {
+        $this->authoriser = $authoriser;
+        return $this;
+    }
+
+    public function autoAuthorise(bool $enabled = true): self
+    {
+        if ($enabled && $this->authoriser === null) {
+            throw new \LogicException('Auto-authorisation requires an authoriser configured by TamaraService.');
+        }
+        $this->autoAuthorise = $enabled;
         return $this;
     }
 
@@ -175,21 +192,21 @@ class TamaraWebhookProcessor
         if ($this->enforceSignature) {
             if ($this->verifier === null) {
                 $this->logger->error('Tamara Webhook: Signature verification is enabled but verifier/notification token is not configured.');
-                return ['success' => false, 'error' => 'Webhook verification misconfigured: notification token is required'];
+                return ['success' => false, 'http_status' => 500, 'error' => 'Webhook verification misconfigured'];
             }
 
             $extractedToken = TamaraSignatureVerifier::extractToken($token, $authHeader, $query);
 
             if (empty($extractedToken)) {
                 $this->logger->warning('Tamara Webhook: Missing required authentication token.');
-                return ['success' => false, 'error' => 'Missing Tamara authentication token'];
+                return ['success' => false, 'http_status' => 401, 'error' => 'Missing Tamara authentication token'];
             }
 
             try {
                 $this->verifier->verify($extractedToken);
             } catch (TamaraSecurityException $e) {
                 $this->logger->warning("Tamara Webhook: Authentication failed - {$e->getMessage()}");
-                return ['success' => false, 'error' => 'Invalid webhook authentication: ' . $e->getMessage()];
+                return ['success' => false, 'http_status' => 401, 'error' => 'Invalid webhook authentication'];
             }
         }
 
@@ -197,7 +214,7 @@ class TamaraWebhookProcessor
         $validationError = $this->validatePayload($data, $rawPayload);
         if ($validationError !== null) {
             $this->logger->warning("Tamara Webhook: Malformed payload rejected - {$validationError}");
-            return ['success' => false, 'error' => "Malformed payload: {$validationError}"];
+            return ['success' => false, 'http_status' => 400, 'error' => "Malformed payload: {$validationError}"];
         }
 
         $orderReferenceId = (string) $data['order_reference_id'];
@@ -211,7 +228,7 @@ class TamaraWebhookProcessor
         if (!$hasMethodHandler && !$hasCustomHandler) {
             $this->logger->warning("Tamara Webhook: Unsupported or unhandled event type [{$eventType}]");
             return [
-                'success' => false,
+                'success' => false, 'http_status' => 400,
                 'error'   => "Unsupported or unhandled webhook event type [{$eventType}]",
             ];
         }
@@ -231,7 +248,7 @@ class TamaraWebhookProcessor
         $entity = $this->resolveEntity($orderReferenceId, $orderId);
         if (!$entity) {
             $this->logger->warning("Tamara Webhook: Order entity not found for reference [{$orderReferenceId}]");
-            return ['success' => false, 'error' => 'Order entity not found'];
+            return ['success' => false, 'http_status' => 404, 'error' => 'Order entity not found'];
         }
 
         // 6. Protect Against Out-of-Order Events (State Machine Validation)
@@ -247,7 +264,7 @@ class TamaraWebhookProcessor
                 $eventType
             ));
             return [
-                'success' => true,
+                'success' => false, 'http_status' => 409,
                 'ignored' => true,
                 'message' => 'Out-of-order event ignored: illegal state transition',
             ];
@@ -255,6 +272,9 @@ class TamaraWebhookProcessor
 
         // 7. Dispatch to Entity or Custom Handler
         $this->dispatch($entity, $eventType, $data);
+        if ($eventType === 'order_approved' && $this->autoAuthorise) {
+            ($this->authoriser)($orderId);
+        }
 
         // 8. Deduplication: Mark Event as Processed
         if ($this->deduplicator) {
@@ -276,7 +296,7 @@ class TamaraWebhookProcessor
             'order_id'           => $orderId,
         ]);
 
-        return ['success' => true];
+        return ['success' => true, 'http_status' => 200];
     }
 
     /**

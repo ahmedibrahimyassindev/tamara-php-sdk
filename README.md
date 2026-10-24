@@ -120,7 +120,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Tamara\TamaraService;
-use Tamara\TamaraService;
+use Tamara\TamaraWebhookProcessor;
 
 class TamaraPaymentController extends Controller
 {
@@ -139,10 +139,16 @@ class TamaraPaymentController extends Controller
     public function webhook(Request $request, TamaraWebhookProcessor $processor)
     {
 
-        $processor->addResolver(fn($ref) => Order::where('order_reference', $ref)->first());
+        $processor->addResolver(fn($ref) => Order::where('order_reference_id', $ref)->first());
 
-        $result = $processor->process($request->all(), $request->getContent());
-        return response()->json($result);
+        $result = $processor->process(
+            $request->all(),
+            $request->getContent(),
+            $request->bearerToken(),
+            $request->header('Authorization'),
+            $request->query()
+        );
+        return response()->json($result, $result['http_status'] ?? 200);
     }
 }
 ```
@@ -151,6 +157,19 @@ class TamaraPaymentController extends Controller
 
 ## Advanced API Operations
 
+### Authorise approved orders
+
+After receiving `order_approved`, authorise the order server-side so Tamara can
+move it to `authorised`. Enable the processor's opt-in helper when creating it:
+
+```php
+$processor = $tamara->createWebhookProcessor();
+$processor->autoAuthorise(true);
+```
+
+The helper calls Tamara's authorise endpoint when an `order_approved` event is
+processed. If your account uses Tamara auto-authorisation, leave this disabled.
+
 ```php
 // Authorise order
 $service->authoriseOrder($tamaraOrderId);
@@ -158,12 +177,18 @@ $service->authoriseOrder($tamaraOrderId);
 // Get order details
 $orderData = $service->getOrder($tamaraOrderId);
 
-// Capture payment
-$service->capturePayment($tamaraOrderId, $amount, 'SAR');
+// Capture payment (provide shipping information required by Tamara)
+$service->capturePayment($tamaraOrderId, $amount, 'SAR', $items, $shippingInfo);
 
 // Cancel order
+// Tamara accepts cancellation only while the order is authorised and uncaptured.
 $service->cancelOrder($tamaraOrderId);
 ```
+
+For capture, `$shippingInfo` must include fulfillment details such as `shipped_at`,
+`shipping_company`, `tracking_number`, and `tracking_url` where available. Implement
+optional `getTamaraShippingAmount()`, `getTamaraTaxAmount()`, and
+`getTamaraDiscount()` methods on your order model when those amounts apply.
 
 ---
 

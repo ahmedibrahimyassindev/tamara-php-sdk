@@ -17,8 +17,8 @@ class TamaraService
     /** @var TamaraOrderBuilder */
     protected $builder;
 
-    /** @var float Gateway markup/fee ratio (configurable, e.g. 1.076345) */
-    protected static $feeRatio = 1.076345;
+    /** @var float Gateway markup/fee ratio (disabled by default) */
+    protected static $feeRatio = 1.0;
 
     public function __construct(TamaraClient $client, ?TamaraOrderBuilder $builder = null)
     {
@@ -60,6 +60,7 @@ class TamaraService
     public function createWebhookProcessor(?LoggerInterface $logger = null): TamaraWebhookProcessor
     {
         $processor = new TamaraWebhookProcessor(null, null, $logger);
+        $processor->setAuthoriser(fn (string $orderId) => $this->authoriseOrder($orderId));
 
         $token = $this->client->getNotificationToken();
         if (!empty($token)) {
@@ -128,9 +129,9 @@ class TamaraService
         return $this->client->getOrder($orderId);
     }
 
-    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = []): array
+    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = [], array $shippingInfo = []): array
     {
-        return $this->client->capturePayment($orderId, $amount, $currency, $items);
+        return $this->client->capturePayment($orderId, $amount, $currency, $items, $shippingInfo);
     }
 
     public function cancelOrder(string $orderId, array $data = []): array

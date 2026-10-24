@@ -97,7 +97,7 @@ class TamaraClient
      */
     public function getOrder(string $orderId): array
     {
-        $response = $this->request("/orders/{$orderId}", 'GET');
+        $response = $this->request('/orders/' . rawurlencode($orderId), 'GET');
 
         if ($response['status'] === 200) {
             return $response['body'];
@@ -116,7 +116,7 @@ class TamaraClient
      */
     public function authoriseOrder(string $orderId): array
     {
-        $response = $this->request("/orders/{$orderId}/authorise", 'POST');
+        $response = $this->request('/orders/' . rawurlencode($orderId) . '/authorise', 'POST');
 
         if ($response['status'] === 200) {
             return $response['body'];
@@ -136,17 +136,22 @@ class TamaraClient
      * @return array
      * @throws TamaraApiException
      */
-    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = []): array
+    public function capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = [], array $shippingInfo = []): array
     {
+        if ($shippingInfo === []) {
+            throw new \Tamara\Exceptions\TamaraValidationException('Tamara capture requires shipping_info.');
+        }
         $data = [
+            'order_id' => $orderId,
             'total_amount' => [
                 'amount'   => $amount,
                 'currency' => $currency,
             ],
+            'shipping_info' => $shippingInfo,
             'items' => $items,
         ];
 
-        $response = $this->request("/orders/{$orderId}/capture", 'POST', $data);
+        $response = $this->request('/payments/capture', 'POST', $data);
 
         if ($response['status'] === 200) {
             return $response['body'];
@@ -166,7 +171,7 @@ class TamaraClient
      */
     public function cancelOrder(string $orderId, array $data = []): array
     {
-        $response = $this->request("/orders/{$orderId}/cancel", 'POST', $data);
+        $response = $this->request('/orders/' . rawurlencode($orderId) . '/cancel', 'POST', $data);
 
         if ($response['status'] === 200) {
             return $response['body'];

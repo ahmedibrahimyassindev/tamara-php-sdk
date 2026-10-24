@@ -61,8 +61,8 @@ class TamaraSignatureVerifier
         }
 
         $alg = $header['alg'] ?? null;
-        if ($alg !== 'HS256') {
-            throw new TamaraSecurityException("Unsupported or insecure JWT algorithm [{$alg}]. Tamara requires HS256.");
+        if (!is_string($alg) || $alg !== 'HS256') {
+            throw new TamaraSecurityException('Unsupported or insecure JWT algorithm. Tamara requires HS256.');
         }
 
         // 2. Verify signature

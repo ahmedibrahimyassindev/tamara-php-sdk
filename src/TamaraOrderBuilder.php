@@ -55,14 +55,6 @@ class TamaraOrderBuilder
                 'amount'   => $amount,
                 'currency' => $currency,
             ],
-            'shipping_amount'    => [
-                'amount'   => 0.0,
-                'currency' => $currency,
-            ],
-            'tax_amount'         => [
-                'amount'   => 0.0,
-                'currency' => $currency,
-            ],
             'description'        => $description,
             'country_code'       => strtoupper(trim($entity->getTamaraCountryCode())),
             'payment_type'       => $entity->getTamaraPaymentType(),
@@ -77,15 +69,26 @@ class TamaraOrderBuilder
             'risk_assessment'    => $entity->getTamaraRiskAssessment(),
         ];
 
+        foreach (['ShippingAmount' => 'shipping_amount', 'TaxAmount' => 'tax_amount'] as $method => $key) {
+            $getter = 'getTamara' . $method;
+            if (method_exists($entity, $getter)) {
+                $payload[$key] = ['amount' => (float) $entity->$getter(), 'currency' => $currency];
+            }
+        }
+        if (method_exists($entity, 'getTamaraDiscount')) {
+            $payload['discount'] = ['amount' => ['amount' => (float) $entity->getTamaraDiscount(), 'currency' => $currency]];
+        }
+
         if ($notificationUrl !== null) {
             $payload['merchant_url']['notification'] = $notificationUrl;
         }
 
         $address = $entity->getTamaraAddress();
-        if (!empty($address)) {
-            $payload['billing_address']  = $address;
-            $payload['shipping_address'] = $address;
+        if (empty($address)) {
+            throw new TamaraValidationException('A billing and shipping address is required for Tamara checkout.');
         }
+        $payload['billing_address'] = $address;
+        $payload['shipping_address'] = $address;
 
         if ($this->validateAmounts) {
             TamaraPaymentValidator::validateCheckoutPayload($payload);
