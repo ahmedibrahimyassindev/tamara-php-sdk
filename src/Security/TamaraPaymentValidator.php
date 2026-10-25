@@ -76,9 +76,8 @@ class TamaraPaymentValidator
 
             // Consistency check: items total + shipping + tax - discount == total amount
             $calculatedTotal = $itemsTotal + $shippingAmount + $taxAmount - $discountAmount;
-            $epsilon         = 0.01;
 
-            if (abs($calculatedTotal - $totalAmount) > $epsilon) {
+            if (self::toMinorUnits($calculatedTotal, $currency) !== self::toMinorUnits($totalAmount, $currency)) {
                 throw new TamaraValidationException(sprintf(
                     'Order amount mismatch: declared total (%01.2f %s) does not match items (%01.2f) + shipping (%01.2f) + tax (%01.2f) - discount (%01.2f) = calculated (%01.2f).',
                     $totalAmount,
@@ -118,6 +117,10 @@ class TamaraPaymentValidator
         string $fieldName = 'amount',
         bool $requirePositive = false
     ): void {
+        if (!is_finite($amount)) {
+            throw new TamaraValidationException("Field [{$fieldName}] must be a finite amount.");
+        }
+
         if ($requirePositive && $amount <= 0.0) {
             throw new TamaraValidationException("Field [{$fieldName}] must be strictly positive (> 0). Value given: {$amount}");
         }
@@ -188,9 +191,10 @@ class TamaraPaymentValidator
 
         // Check line item math (unit_price * quantity - item_discount)
         $itemDiscount = (float) ($item['discount_amount']['amount'] ?? 0.0);
+        self::validateAmount($itemDiscount, $orderCurrency, "items[{$index}].discount_amount", false);
         $expectedItemTotal = ($unitPrice * $qty) - $itemDiscount;
 
-        if (abs($expectedItemTotal - $itemTotal) > 0.01) {
+        if (self::toMinorUnits($expectedItemTotal, $orderCurrency) !== self::toMinorUnits($itemTotal, $orderCurrency)) {
             throw new TamaraValidationException(sprintf(
                 "Item at index [%d] total (%01.2f) does not match unit_price (%01.2f) * quantity (%d) - discount (%01.2f) = %01.2f.",
                 $index,
@@ -203,6 +207,17 @@ class TamaraPaymentValidator
         }
 
         return $itemTotal;
+    }
+
+    private static function toMinorUnits(float $amount, string $currency): int
+    {
+        $decimals = in_array(strtoupper($currency), self::THREE_DECIMAL_CURRENCIES, true) ? 3 : 2;
+        $scaled = round($amount * (10 ** $decimals));
+        if (!is_finite($scaled) || abs($scaled) > PHP_INT_MAX) {
+            throw new TamaraValidationException('Amount exceeds the supported financial range.');
+        }
+
+        return (int) $scaled;
     }
 }
 

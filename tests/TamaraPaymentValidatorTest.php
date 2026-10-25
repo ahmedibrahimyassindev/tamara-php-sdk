@@ -17,6 +17,7 @@ class TamaraPaymentValidatorTest
         $this->testAmountArithmeticMismatchRejected();
         $this->testItemArithmeticMismatchRejected();
         $this->testDiscountArithmetic();
+        $this->testThreeDecimalCurrencyArithmeticIsExact();
     }
 
     protected function testValidOrderPayload(): void
@@ -151,6 +152,37 @@ class TamaraPaymentValidatorTest
             ]],
         ]);
         testExpect(true, 'Discount arithmetic must be accepted.');
+    }
+
+    protected function testThreeDecimalCurrencyArithmeticIsExact(): void
+    {
+        TamaraPaymentValidator::validateCheckoutPayload([
+            'total_amount' => ['amount' => 10.123, 'currency' => 'KWD'],
+            'shipping_amount' => ['amount' => 0.0, 'currency' => 'KWD'],
+            'tax_amount' => ['amount' => 0.0, 'currency' => 'KWD'],
+            'items' => [[
+                'name' => 'KWD item', 'quantity' => 1,
+                'unit_price' => ['amount' => 10.123, 'currency' => 'KWD'],
+                'total_amount' => ['amount' => 10.123, 'currency' => 'KWD'],
+            ]],
+        ]);
+
+        $payload = [
+            'total_amount' => ['amount' => 10.009, 'currency' => 'BHD'],
+            'shipping_amount' => ['amount' => 0.0, 'currency' => 'BHD'],
+            'tax_amount' => ['amount' => 0.0, 'currency' => 'BHD'],
+            'items' => [[
+                'name' => 'BHD item', 'quantity' => 1,
+                'unit_price' => ['amount' => 10.000, 'currency' => 'BHD'],
+                'total_amount' => ['amount' => 10.000, 'currency' => 'BHD'],
+            ]],
+        ];
+        try {
+            TamaraPaymentValidator::validateCheckoutPayload($payload);
+            testExpect(false, 'A 0.009 BHD mismatch must not fit inside a two-decimal epsilon.');
+        } catch (TamaraValidationException $e) {
+            testExpect(str_contains($e->getMessage(), 'Order amount mismatch'));
+        }
     }
 }
 

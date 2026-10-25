@@ -114,6 +114,15 @@ class TamaraSignatureVerifierTest
         testExpect(TamaraSignatureVerifier::extractToken(authHeader: 'Bearer my-jwt-token') === 'my-jwt-token');
         testExpect(TamaraSignatureVerifier::extractToken(query: ['tamaraToken' => 'my-jwt-token']) === 'my-jwt-token');
         testExpect(TamaraSignatureVerifier::extractToken(query: 'tamaraToken=my-jwt-token&foo=bar') === 'my-jwt-token');
+
+        $hadAuthorization = array_key_exists('HTTP_AUTHORIZATION', $_SERVER);
+        $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? null;
+        $hadQueryToken = array_key_exists('tamaraToken', $_GET);
+        $queryToken = $_GET['tamaraToken'] ?? null;
+        unset($_SERVER['HTTP_AUTHORIZATION'], $_GET['tamaraToken']);
+        testExpect(TamaraSignatureVerifier::extractToken() === null, 'Token extraction must not depend on process superglobals.');
+        if ($hadAuthorization) { $_SERVER['HTTP_AUTHORIZATION'] = $authorization; }
+        if ($hadQueryToken) { $_GET['tamaraToken'] = $queryToken; }
     }
 }
 

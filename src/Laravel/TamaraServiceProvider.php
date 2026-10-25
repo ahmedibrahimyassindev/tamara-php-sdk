@@ -51,7 +51,8 @@ class TamaraServiceProvider extends ServiceProvider
             $builder = (new TamaraOrderBuilder())->setRequiresShippingAddress(
                 (bool) ($config['requires_shipping_address'] ?? true)
             );
-            return new TamaraService($app->make(TamaraClient::class), $builder);
+            return (new TamaraService($app->make(TamaraClient::class), $builder))
+                ->setDefaultLocale((string) ($config['default_locale'] ?? 'ar_SA'));
         });
 
         // Bind TamaraWebhookProcessor as scoped or transient

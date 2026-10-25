@@ -49,14 +49,5 @@ return [
     */
     'default_locale' => env('TAMARA_DEFAULT_LOCALE', 'ar_SA'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Currency
-    |--------------------------------------------------------------------------
-    |
-    | Supported currencies: SAR, AED, KWD, BHD, etc.
-    |
-    */
-    'currency' => env('TAMARA_CURRENCY', 'SAR'),
 ];
 

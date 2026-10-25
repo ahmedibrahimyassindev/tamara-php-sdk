@@ -9,7 +9,7 @@ use Tamara\TamaraService;
 use Tamara\TamaraWebhookProcessor;
 
 /**
- * @method static string initiateCheckout(TamaraOrderableInterface $entity, string $successUrl, string $failureUrl, string $cancelUrl, ?string $notificationUrl = null, string $locale = 'ar_SA', string $description = 'Online Order')
+ * @method static string initiateCheckout(TamaraOrderableInterface $entity, string $successUrl, string $failureUrl, string $cancelUrl, ?string $notificationUrl = null, ?string $locale = null, string $description = 'Online Order')
  * @method static array authoriseOrder(string $orderId)
  * @method static array getOrder(string $orderId)
  * @method static array capturePayment(string $orderId, float $amount, string $currency = 'SAR', array $items = [], array $shippingInfo = [], float $shippingAmount = 0.0, float $taxAmount = 0.0, float $discountAmount = 0.0)

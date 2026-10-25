@@ -141,17 +141,6 @@ class TamaraSignatureVerifier
             }
         }
 
-        // Check global environment if available
-        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            if (preg_match('/Bearer\s+(\S+)/i', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
-                return trim($matches[1]);
-            }
-        }
-
-        if (isset($_GET['tamaraToken']) && !empty($_GET['tamaraToken'])) {
-            return trim((string) $_GET['tamaraToken']);
-        }
-
         return null;
     }
 

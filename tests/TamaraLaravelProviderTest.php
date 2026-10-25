@@ -79,10 +79,13 @@ class TamaraLaravelProviderTest
             'auto_authorise' => true,
             'requires_shipping_address' => false,
             'webhook_deduplication_ttl' => 43210,
+            'default_locale' => 'en_SA',
         ]);
         (new TamaraServiceProvider($app))->register();
 
         $service = $app->make(TamaraService::class);
+        $localeReflection = new ReflectionProperty(TamaraService::class, 'defaultLocale');
+        testExpect($localeReflection->getValue($service) === 'en_SA');
         testExpect($service->getClient()->getApiUrl() === TamaraClient::API_URL_SANDBOX);
         $serviceReflection = new ReflectionProperty(TamaraService::class, 'builder');
         $builder = $serviceReflection->getValue($service);

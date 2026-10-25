@@ -19,6 +19,9 @@ class TamaraService
     /** @var TamaraOrderBuilder */
     protected $builder;
 
+    /** @var string */
+    protected $defaultLocale = 'ar_SA';
+
     /** @var float Gateway markup/fee ratio (disabled by default) */
     protected static $feeRatio = 1.0;
 
@@ -93,7 +96,7 @@ class TamaraService
         string $failureUrl,
         string $cancelUrl,
         ?string $notificationUrl = null,
-        string $locale = 'ar_SA',
+        ?string $locale = null,
         string $description = 'Online Order'
     ): string {
         if (method_exists($entity, 'assertTamaraCheckoutPersistenceReady')) {
@@ -106,7 +109,7 @@ class TamaraService
             $failureUrl,
             $cancelUrl,
             $notificationUrl,
-            $locale,
+            $locale ?? $this->defaultLocale,
             $description
         );
 
@@ -136,6 +139,16 @@ class TamaraService
     public function getClient(): TamaraClient
     {
         return $this->client;
+    }
+
+    public function setDefaultLocale(string $locale): self
+    {
+        $locale = trim($locale);
+        if ($locale === '') {
+            throw new \Tamara\Exceptions\TamaraValidationException('Default locale cannot be empty.');
+        }
+        $this->defaultLocale = $locale;
+        return $this;
     }
 
     public function authoriseOrder(string $orderId): array

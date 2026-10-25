@@ -76,6 +76,7 @@ class Order extends \Illuminate\Database\Eloquent\Model implements TamaraOrderab
 ```
 
 The entity must be able to persist `tamara_order_id`, `tamara_checkout_id`, and `tamara_status` when using `TamaraOrderableTrait`. Eloquent models can use corresponding database attributes (or their supported dynamic attributes); plain PHP entities should declare all three properties. The SDK checks this before creating a Tamara checkout, so a configuration mistake cannot leave an unrecorded remote session.
+The checkout currency comes from the order's `getTamaraCurrency()` method. The Laravel `default_locale` setting controls the default hosted checkout locale; an explicit locale passed to `initiateCheckout()` takes precedence.
 
 ### 2. Create Checkout Session
 
@@ -117,8 +118,9 @@ $processor->addResolver(function (string $orderReferenceId) {
 
 $rawPayload = file_get_contents('php://input');
 $data       = json_decode($rawPayload, true) ?: [];
+$token      = $_GET['tamaraToken'] ?? null;
 
-$result = $processor->process($data, $rawPayload);
+$result = $processor->process($data, $rawPayload, $token);
 
 header('Content-Type: application/json');
 echo json_encode($result);
