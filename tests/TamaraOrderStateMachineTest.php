@@ -12,6 +12,7 @@ class TamaraOrderStateMachineTest
         $this->testTerminalStatesCannotBeOverwritten();
         $this->testOutofOrderTransitionsBlocked();
         $this->testIdempotentTransitionsAllowed();
+        $this->testStaleTransitionClassification();
     }
 
     protected function testAllowedTransitions(): void
@@ -44,6 +45,17 @@ class TamaraOrderStateMachineTest
     {
         testExpect(TamaraOrderStateMachine::canTransition('authorised', 'authorised'));
         testExpect(TamaraOrderStateMachine::canTransition('fully_captured', 'captured'));
+    }
+
+    protected function testStaleTransitionClassification(): void
+    {
+        testExpect(TamaraOrderStateMachine::isStaleTransition('declined', 'approved'), 'Terminal current status is stale.');
+        testExpect(TamaraOrderStateMachine::isStaleTransition('fully_captured', 'approved'), 'A lower ranked target is stale.');
+        testExpect(!TamaraOrderStateMachine::isStaleTransition('approved', 'partially_refunded'), 'A higher ranked target may become valid later.');
+        testExpect(!TamaraOrderStateMachine::isStaleTransition('processing', 'approved'), 'Unknown current status is not classified as stale.');
+        testExpect(!TamaraOrderStateMachine::isStaleTransition(null, 'approved'), 'A known target may become valid from an unset status.');
+        testExpect(!TamaraOrderStateMachine::isKnownStatus('processing'));
+        testExpect(TamaraOrderStateMachine::isKnownStatus(null));
     }
 }
 

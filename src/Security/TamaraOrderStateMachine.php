@@ -132,10 +132,19 @@ class TamaraOrderStateMachine
 
         $currentRank = $currentNorm === null ? -1 : ($rank[$currentNorm] ?? null);
         if ($currentRank === null) {
-            return true;
+            return false;
         }
 
         return $rank[$targetNorm] <= $currentRank;
+    }
+
+    public static function isKnownStatus(?string $status): bool
+    {
+        if ($status === null || trim($status) === '') {
+            return true;
+        }
+
+        return array_key_exists(self::normalizeStatus($status), self::ALLOWED_TRANSITIONS);
     }
 
     /**

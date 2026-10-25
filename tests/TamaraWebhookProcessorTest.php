@@ -66,6 +66,7 @@ class TamaraWebhookProcessorTest
         $this->testDeduplicationPreventsDuplicateProcessing();
         $this->testOutofOrderEventRejected();
         $this->testFutureOutOfOrderEventIsRetryable();
+        $this->testUnknownStoredStatusReturnsServerError();
         $this->testCaptureEventAdvancesApprovedOrder();
         $this->testAutoAuthoriseAndFailureResponse();
         $this->testAuthorisedEventIsNotDispatchedTwice();
@@ -247,6 +248,22 @@ class TamaraWebhookProcessorTest
         testExpect($result['success'] === false && $result['http_status'] === 409);
         testExpect($result['retry'] === true && $result['ignored'] === true);
         testExpect($order->getTamaraStatus() === 'approved');
+    }
+
+    protected function testUnknownStoredStatusReturnsServerError(): void
+    {
+        $secret = 'test-secret';
+        $order = new MockOrder();
+        $order->tamara_status = 'processing';
+        $processor = new TamaraWebhookProcessor();
+        $processor->setNotificationToken($secret);
+        $processor->addResolver(fn($ref) => $order);
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+        $payload = ['order_id' => 'ord-1', 'order_reference_id' => 'ORD-1001', 'event_type' => 'order_approved'];
+
+        $result = $processor->process($payload, json_encode($payload), token: $token);
+        testExpect($result['success'] === false && $result['http_status'] === 500);
+        testExpect($order->tamara_status === 'processing');
     }
 
     protected function testCaptureEventAdvancesApprovedOrder(): void

@@ -178,7 +178,7 @@ Return the processor's `http_status` as shown so Tamara can retry failed deliver
 | `401` | Missing or invalid webhook token |
 | `404` | Matching order was not found; delivery can be retried after local order creation |
 | `409` | Event is ahead of the stored order status and may become valid when earlier events arrive; retry |
-| `500` | Local webhook handler or persistence failed |
+| `500` | Local webhook handler or persistence failed, or the stored Tamara order status is unrecognised |
 | `502` | Tamara API/status verification or auto-authorisation failed |
 | `503` | Another worker holds the short processing lease; retry after it expires or finishes |
 
@@ -218,6 +218,8 @@ For capture, `$shippingInfo` must include `shipped_at`, `shipping_company`,
 `tracking_number`, and `tracking_url`. The method also accepts optional shipping, tax,
 and discount amounts after `$shippingInfo`. Tamara cancellation is allowed only while
 the order is authorised; the SDK checks the remote order status before calling cancel.
+Canceling the uncaptured remainder after a partial capture is out of scope. Cancel events
+after capture are treated as stale and acknowledged without changing the local order.
 
 The order builder requires an address by default. For digital services, inject a builder
 configured with `(new TamaraOrderBuilder())->setRequiresShippingAddress(false)` into

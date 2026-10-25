@@ -8,6 +8,7 @@ use Tamara\Security\TamaraSignatureVerifier;
 use Tamara\TamaraClient;
 use Tamara\TamaraService;
 use Tamara\Traits\TamaraOrderableTrait;
+use Psr\Log\NullLogger;
 use RuntimeException;
 
 class ServiceOrder implements TamaraOrderableInterface
@@ -66,6 +67,12 @@ class CheckoutTrackingClient extends TamaraClient
     }
 }
 
+class CapturingLogger extends NullLogger
+{
+    public $errors = [];
+    public function error($message, array $context = []): void { $this->errors[] = [$message, $context]; }
+}
+
 class TamaraServiceTest
 {
     public function run(): void
@@ -73,6 +80,7 @@ class TamaraServiceTest
         $this->testAuthoriseTreatsAlreadyAuthorisedAsSuccess();
         $this->testWebhookProcessorAuthoriserWiring();
         $this->testCheckoutPersistenceIsCheckedBeforeRemoteCall();
+        $this->testCheckoutPersistenceFailureIsLogged();
     }
 
     private function testAuthoriseTreatsAlreadyAuthorisedAsSuccess(): void
@@ -145,5 +153,28 @@ class TamaraServiceTest
             testExpect($client->checkoutCalls === 0);
             testExpect(str_contains($e->getMessage(), 'tamara_status'));
         }
+    }
+
+    private function testCheckoutPersistenceFailureIsLogged(): void
+    {
+        $logger = new CapturingLogger();
+        $client = new CheckoutTrackingClient('merchant-token', 'notify-token', false, null, $logger);
+        $order = new class extends ServiceOrder {
+            public $tamara_order_id;
+            public $tamara_checkout_id;
+            public function save(): void { throw new RuntimeException('database unavailable'); }
+        };
+
+        try {
+            (new TamaraService($client))->initiateCheckout($order, 'https://shop.test/s', 'https://shop.test/f', 'https://shop.test/c');
+            testExpect(false, 'Local persistence failure should propagate.');
+        } catch (RuntimeException $e) {
+            testExpect($e->getMessage() === 'database unavailable');
+        }
+
+        testExpect($client->checkoutCalls === 1, 'Remote checkout should have been created before persistence failed.');
+        testExpect(count($logger->errors) === 1);
+        testExpect($logger->errors[0][1]['order_id'] === 'tamara-order');
+        testExpect($logger->errors[0][1]['checkout_id'] === 'checkout');
     }
 }

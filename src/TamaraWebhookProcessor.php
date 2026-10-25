@@ -272,6 +272,13 @@ class TamaraWebhookProcessor
             return ['success' => false, 'http_status' => 502, 'error' => 'Unable to verify Tamara order status'];
         }
         $currentStatus = $entity->getTamaraStatus();
+        if (!TamaraOrderStateMachine::isKnownStatus($currentStatus)) {
+            $this->logger->error('Tamara webhook found an unrecognised stored order status.', [
+                'order_reference_id' => $orderReferenceId,
+                'status' => $currentStatus,
+            ]);
+            return ['success' => false, 'http_status' => 500, 'error' => 'Stored Tamara order status is not recognised'];
+        }
         $autoAuthorisedMarker = $this->autoAuthorisedMarkerKey($orderId);
         $autoAuthorisedAlreadyDispatched = $this->deduplicator !== null
             && $this->deduplicator->isProcessed($autoAuthorisedMarker);
