@@ -24,14 +24,14 @@ if (!class_exists(\Illuminate\Support\ServiceProvider::class)) {
 }
 
 spl_autoload_register(function ($class) {
-    if (str_starts_with($class, 'Tamara\\Tests\\')) {
-        $rel = substr($class, strlen('Tamara\\Tests\\'));
+    if (str_starts_with($class, 'TamaraPhpSdk\\Tests\\')) {
+        $rel = substr($class, strlen('TamaraPhpSdk\\Tests\\'));
         $path = __DIR__ . '/' . str_replace('\\', '/', $rel) . '.php';
         if (file_exists($path)) {
             require_once $path;
         }
-    } elseif (str_starts_with($class, 'Tamara\\')) {
-        $rel = substr($class, strlen('Tamara\\'));
+    } elseif (str_starts_with($class, 'TamaraPhpSdk\\')) {
+        $rel = substr($class, strlen('TamaraPhpSdk\\'));
         $path = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $rel) . '.php';
         if (file_exists($path)) {
             require_once $path;

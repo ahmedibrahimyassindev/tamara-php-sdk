@@ -1,14 +1,14 @@
 <?php
 
-namespace Tamara\Laravel;
+namespace TamaraPhpSdk\Laravel;
 
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
-use Tamara\TamaraClient;
-use Tamara\TamaraOrderBuilder;
-use Tamara\Security\TamaraAtomicCacheDeduplicator;
-use Tamara\TamaraService;
-use Tamara\TamaraWebhookProcessor;
+use TamaraPhpSdk\TamaraClient;
+use TamaraPhpSdk\TamaraOrderBuilder;
+use TamaraPhpSdk\Security\TamaraAtomicCacheDeduplicator;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\TamaraWebhookProcessor;
 
 class TamaraServiceProvider extends ServiceProvider
 {

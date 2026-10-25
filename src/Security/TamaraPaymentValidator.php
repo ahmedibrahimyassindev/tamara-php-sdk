@@ -1,8 +1,8 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
-use Tamara\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
 
 /**
  * Validates financial integrity of order and checkout amounts.

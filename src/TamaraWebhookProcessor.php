@@ -1,19 +1,19 @@
 <?php
 
-namespace Tamara;
+namespace TamaraPhpSdk;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraApiException;
-use Tamara\Exceptions\TamaraSecurityException;
-use Tamara\Exceptions\TamaraWebhookException;
-use Tamara\Security\TamaraDeduplicatorInterface;
-use Tamara\Security\TamaraAtomicDeduplicatorInterface;
-use Tamara\Security\TamaraInMemoryDeduplicator;
-use Tamara\Security\TamaraOrderStateMachine;
-use Tamara\Security\TamaraSanitizer;
-use Tamara\Security\TamaraSignatureVerifier;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraApiException;
+use TamaraPhpSdk\Exceptions\TamaraSecurityException;
+use TamaraPhpSdk\Exceptions\TamaraWebhookException;
+use TamaraPhpSdk\Security\TamaraDeduplicatorInterface;
+use TamaraPhpSdk\Security\TamaraAtomicDeduplicatorInterface;
+use TamaraPhpSdk\Security\TamaraInMemoryDeduplicator;
+use TamaraPhpSdk\Security\TamaraOrderStateMachine;
+use TamaraPhpSdk\Security\TamaraSanitizer;
+use TamaraPhpSdk\Security\TamaraSignatureVerifier;
 use Throwable;
 
 /**

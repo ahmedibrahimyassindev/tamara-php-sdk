@@ -1,9 +1,9 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\TamaraClient;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\TamaraClient;
 use ReflectionProperty;
 
 class FakeTamaraClient extends TamaraClient

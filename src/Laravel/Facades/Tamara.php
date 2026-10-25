@@ -1,12 +1,12 @@
 <?php
 
-namespace Tamara\Laravel\Facades;
+namespace TamaraPhpSdk\Laravel\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\TamaraClient;
-use Tamara\TamaraService;
-use Tamara\TamaraWebhookProcessor;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\TamaraClient;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\TamaraWebhookProcessor;
 
 /**
  * @method static string initiateCheckout(TamaraOrderableInterface $entity, string $successUrl, string $failureUrl, string $cancelUrl, ?string $notificationUrl = null, ?string $locale = null, string $description = 'Online Order')

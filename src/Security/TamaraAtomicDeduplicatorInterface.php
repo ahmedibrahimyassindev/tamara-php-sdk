@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /** Atomic event reservation for deduplicators backed by shared storage. */
 interface TamaraAtomicDeduplicatorInterface extends TamaraDeduplicatorInterface

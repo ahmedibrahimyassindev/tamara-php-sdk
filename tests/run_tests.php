@@ -3,16 +3,16 @@
 require_once __DIR__ . '/bootstrap.php';
 
 $testClasses = [
-    \Tamara\Tests\TamaraSignatureVerifierTest::class,
-    \Tamara\Tests\TamaraPaymentValidatorTest::class,
-    \Tamara\Tests\TamaraOrderStateMachineTest::class,
-    \Tamara\Tests\TamaraSanitizerTest::class,
-    \Tamara\Tests\TamaraOrderReferenceTest::class,
-    \Tamara\Tests\TamaraWebhookProcessorTest::class,
-    \Tamara\Tests\TamaraOrderBuilderTest::class,
-    \Tamara\Tests\TamaraClientTest::class,
-    \Tamara\Tests\TamaraServiceTest::class,
-    \Tamara\Tests\TamaraLaravelProviderTest::class,
+    \TamaraPhpSdk\Tests\TamaraSignatureVerifierTest::class,
+    \TamaraPhpSdk\Tests\TamaraPaymentValidatorTest::class,
+    \TamaraPhpSdk\Tests\TamaraOrderStateMachineTest::class,
+    \TamaraPhpSdk\Tests\TamaraSanitizerTest::class,
+    \TamaraPhpSdk\Tests\TamaraOrderReferenceTest::class,
+    \TamaraPhpSdk\Tests\TamaraWebhookProcessorTest::class,
+    \TamaraPhpSdk\Tests\TamaraOrderBuilderTest::class,
+    \TamaraPhpSdk\Tests\TamaraClientTest::class,
+    \TamaraPhpSdk\Tests\TamaraServiceTest::class,
+    \TamaraPhpSdk\Tests\TamaraLaravelProviderTest::class,
 ];
 
 echo "==========================================\n";

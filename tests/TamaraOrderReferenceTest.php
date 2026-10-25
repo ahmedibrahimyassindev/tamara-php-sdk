@@ -1,10 +1,10 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\TamaraService;
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\Traits\TamaraOrderableTrait;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\Traits\TamaraOrderableTrait;
 
 class TamaraOrderReferenceTest
 {

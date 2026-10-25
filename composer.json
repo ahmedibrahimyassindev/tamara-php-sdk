@@ -29,21 +29,21 @@
     },
     "autoload": {
         "psr-4": {
-            "Tamara\\": "src/"
+            "TamaraPhpSdk\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tamara\\Tests\\": "tests/"
+            "TamaraPhpSdk\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Tamara\\Laravel\\TamaraServiceProvider"
+                "TamaraPhpSdk\\Laravel\\TamaraServiceProvider"
             ],
             "aliases": {
-                "Tamara": "Tamara\\Laravel\\Facades\\Tamara"
+                "TamaraPhpSdk": "TamaraPhpSdk\\Laravel\\Facades\\Tamara"
             }
         }
     },

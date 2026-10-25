@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /**
  * State machine defining valid Tamara payment order lifecycle transitions.

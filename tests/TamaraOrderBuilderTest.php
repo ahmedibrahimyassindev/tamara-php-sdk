@@ -1,11 +1,11 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\TamaraOrderBuilder;
-use Tamara\Traits\TamaraOrderableTrait;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\TamaraOrderBuilder;
+use TamaraPhpSdk\Traits\TamaraOrderableTrait;
 
 class BuilderOrder implements TamaraOrderableInterface
 {

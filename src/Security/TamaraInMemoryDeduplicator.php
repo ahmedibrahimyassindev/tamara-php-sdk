@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /**
  * In-memory deduplicator (ideal for testing and single-request lifecycle).

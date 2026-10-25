@@ -1,9 +1,9 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\Security\TamaraPaymentValidator;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\Security\TamaraPaymentValidator;
 
 class TamaraPaymentValidatorTest
 {

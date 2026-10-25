@@ -1,9 +1,9 @@
 <?php
 
-namespace Tamara\Traits;
+namespace TamaraPhpSdk\Traits;
 
-use Tamara\Security\TamaraOrderStateMachine;
-use Tamara\Security\TamaraSanitizer;
+use TamaraPhpSdk\Security\TamaraOrderStateMachine;
+use TamaraPhpSdk\Security\TamaraSanitizer;
 
 /**
  * Reusable trait that implements secure methods for TamaraOrderableInterface.
@@ -21,7 +21,7 @@ trait TamaraOrderableTrait
             return (string) $this->id;
         }
 
-        throw new \Tamara\Exceptions\TamaraValidationException(
+        throw new \TamaraPhpSdk\Exceptions\TamaraValidationException(
             'Order reference ID is required; persist a stable order_reference_id before checkout.'
         );
     }
@@ -54,7 +54,7 @@ trait TamaraOrderableTrait
         ];
         foreach ($consumer as $field => $value) {
             if (trim($value) === '') {
-                throw new \Tamara\Exceptions\TamaraValidationException("Customer {$field} is required for Tamara checkout.");
+                throw new \TamaraPhpSdk\Exceptions\TamaraValidationException("Customer {$field} is required for Tamara checkout.");
             }
         }
         return $consumer;
@@ -144,7 +144,7 @@ trait TamaraOrderableTrait
     {
         foreach (['tamara_order_id', 'tamara_checkout_id', 'tamara_status'] as $property) {
             if (!property_exists($this, $property) && !method_exists($this, '__set')) {
-                throw new \Tamara\Exceptions\TamaraValidationException(
+                throw new \TamaraPhpSdk\Exceptions\TamaraValidationException(
                     "Declare {$property} on the order entity or provide magic attribute support before starting checkout."
                 );
             }
@@ -159,7 +159,7 @@ trait TamaraOrderableTrait
             return;
         }
 
-        throw new \Tamara\Exceptions\TamaraValidationException(
+        throw new \TamaraPhpSdk\Exceptions\TamaraValidationException(
             "Declare {$property} on the order entity or provide magic attribute support."
         );
     }

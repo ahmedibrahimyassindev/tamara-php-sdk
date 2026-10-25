@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Contracts;
+namespace TamaraPhpSdk\Contracts;
 
 /**
  * Interface for any order, booking, or cart entity to be payable via Tamara.

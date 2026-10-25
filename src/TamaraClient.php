@@ -1,16 +1,16 @@
 <?php
 
-namespace Tamara;
+namespace TamaraPhpSdk;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Tamara\Exceptions\TamaraApiException;
-use Tamara\Exceptions\TamaraException;
-use Tamara\Exceptions\TamaraSecurityException;
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\Security\TamaraOrderStateMachine;
-use Tamara\Security\TamaraSanitizer;
-use Tamara\Security\TamaraSignatureVerifier;
+use TamaraPhpSdk\Exceptions\TamaraApiException;
+use TamaraPhpSdk\Exceptions\TamaraException;
+use TamaraPhpSdk\Exceptions\TamaraSecurityException;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\Security\TamaraOrderStateMachine;
+use TamaraPhpSdk\Security\TamaraSanitizer;
+use TamaraPhpSdk\Security\TamaraSignatureVerifier;
 
 /**
  * Pure PHP HTTP Client for the Tamara API.

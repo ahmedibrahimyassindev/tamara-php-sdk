@@ -1,8 +1,8 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Security\TamaraSanitizer;
+use TamaraPhpSdk\Security\TamaraSanitizer;
 
 class TamaraSanitizerTest
 {

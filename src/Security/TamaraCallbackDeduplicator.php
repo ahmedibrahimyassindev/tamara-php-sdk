@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /**
  * Callable-based deduplicator for easy integration with Laravel Cache, Redis, Memcached, or DB.

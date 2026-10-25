@@ -1,8 +1,8 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Security\TamaraOrderStateMachine;
+use TamaraPhpSdk\Security\TamaraOrderStateMachine;
 
 class TamaraOrderStateMachineTest
 {

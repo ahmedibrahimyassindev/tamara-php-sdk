@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /**
  * Adapter for cache repositories that provide atomic add, including Laravel Cache.

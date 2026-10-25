@@ -1,9 +1,9 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Exceptions\TamaraSecurityException;
-use Tamara\Security\TamaraSignatureVerifier;
+use TamaraPhpSdk\Exceptions\TamaraSecurityException;
+use TamaraPhpSdk\Security\TamaraSignatureVerifier;
 
 class TamaraSignatureVerifierTest
 {

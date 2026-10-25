@@ -1,13 +1,13 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraApiException;
-use Tamara\Security\TamaraInMemoryDeduplicator;
-use Tamara\Security\TamaraSignatureVerifier;
-use Tamara\TamaraWebhookProcessor;
-use Tamara\Traits\TamaraOrderableTrait;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraApiException;
+use TamaraPhpSdk\Security\TamaraInMemoryDeduplicator;
+use TamaraPhpSdk\Security\TamaraSignatureVerifier;
+use TamaraPhpSdk\TamaraWebhookProcessor;
+use TamaraPhpSdk\Traits\TamaraOrderableTrait;
 
 class MockOrder implements TamaraOrderableInterface
 {

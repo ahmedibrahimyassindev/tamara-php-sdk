@@ -1,16 +1,16 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
 use ArrayAccess;
 use ReflectionProperty;
-use Tamara\Laravel\TamaraServiceProvider;
-use Tamara\TamaraOrderBuilder;
-use Tamara\TamaraClient;
-use Tamara\TamaraService;
-use Tamara\TamaraWebhookProcessor;
-use Tamara\Security\TamaraAtomicCacheDeduplicator;
-use Tamara\Security\TamaraCallbackDeduplicator;
+use TamaraPhpSdk\Laravel\TamaraServiceProvider;
+use TamaraPhpSdk\TamaraOrderBuilder;
+use TamaraPhpSdk\TamaraClient;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\TamaraWebhookProcessor;
+use TamaraPhpSdk\Security\TamaraAtomicCacheDeduplicator;
+use TamaraPhpSdk\Security\TamaraCallbackDeduplicator;
 
 class FakeLaravelConfig
 {

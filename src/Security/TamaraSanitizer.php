@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
 /**
  * Sanitizes sensitive data from payloads, logs, and stored audit records.

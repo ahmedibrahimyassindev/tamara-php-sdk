@@ -1,13 +1,13 @@
 <?php
 
-namespace Tamara\Tests;
+namespace TamaraPhpSdk\Tests;
 
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraApiException;
-use Tamara\Security\TamaraSignatureVerifier;
-use Tamara\TamaraClient;
-use Tamara\TamaraService;
-use Tamara\Traits\TamaraOrderableTrait;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraApiException;
+use TamaraPhpSdk\Security\TamaraSignatureVerifier;
+use TamaraPhpSdk\TamaraClient;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\Traits\TamaraOrderableTrait;
 use Psr\Log\NullLogger;
 use RuntimeException;
 
@@ -149,7 +149,7 @@ class TamaraServiceTest
         try {
             (new TamaraService($client))->initiateCheckout($order, 'https://shop.test/s', 'https://shop.test/f', 'https://shop.test/c');
             testExpect(false, 'Checkout should fail before remote creation when identifiers cannot be stored.');
-        } catch (\Tamara\Exceptions\TamaraValidationException $e) {
+        } catch (\TamaraPhpSdk\Exceptions\TamaraValidationException $e) {
             testExpect($client->checkoutCalls === 0);
             testExpect(str_contains($e->getMessage(), 'tamara_status'));
         }

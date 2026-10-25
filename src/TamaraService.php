@@ -1,11 +1,11 @@
 <?php
 
-namespace Tamara;
+namespace TamaraPhpSdk;
 
 use Psr\Log\LoggerInterface;
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraApiException;
-use Tamara\Security\TamaraOrderStateMachine;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraApiException;
+use TamaraPhpSdk\Security\TamaraOrderStateMachine;
 use Throwable;
 
 /**
@@ -145,7 +145,7 @@ class TamaraService
     {
         $locale = trim($locale);
         if ($locale === '') {
-            throw new \Tamara\Exceptions\TamaraValidationException('Default locale cannot be empty.');
+            throw new \TamaraPhpSdk\Exceptions\TamaraValidationException('Default locale cannot be empty.');
         }
         $this->defaultLocale = $locale;
         return $this;

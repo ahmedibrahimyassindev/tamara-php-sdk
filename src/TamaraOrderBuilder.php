@@ -1,10 +1,10 @@
 <?php
 
-namespace Tamara;
+namespace TamaraPhpSdk;
 
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Exceptions\TamaraValidationException;
-use Tamara\Security\TamaraPaymentValidator;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Exceptions\TamaraValidationException;
+use TamaraPhpSdk\Security\TamaraPaymentValidator;
 
 /**
  * Builds and validates standard Tamara checkout payloads.

@@ -1,6 +1,6 @@
 <?php
 
-namespace Tamara\Exceptions;
+namespace TamaraPhpSdk\Exceptions;
 
 class TamaraApiException extends TamaraException
 {

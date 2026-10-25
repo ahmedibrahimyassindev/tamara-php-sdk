@@ -1,8 +1,8 @@
 <?php
 
-namespace Tamara\Security;
+namespace TamaraPhpSdk\Security;
 
-use Tamara\Exceptions\TamaraSecurityException;
+use TamaraPhpSdk\Exceptions\TamaraSecurityException;
 
 /**
  * Validates Tamara webhook notifications using Tamara's documented HS256 JWT scheme.

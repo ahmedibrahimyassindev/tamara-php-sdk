@@ -2,6 +2,17 @@
 
 Notable changes to `tamara-php-sdk` are documented here.
 
+## [2.0.0] - 2026-10-26
+
+### Breaking changes
+
+- Moved all public classes, contracts, traits, exceptions, and services from the colliding `Tamara\` namespace to `TamaraPhpSdk\` so this package can coexist with Tamara's official PHP SDK.
+- Renamed the optional Laravel facade alias from `Tamara` to `TamaraPhpSdk`.
+
+### Documentation
+
+- Added the unofficial-project notice, an official-versus-community SDK comparison, corrected capture metadata requirements, and sandbox verification status.
+
 ## [1.1.9] - 2026-10-26
 
 ### Fixed

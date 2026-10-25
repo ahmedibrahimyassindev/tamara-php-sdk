@@ -1,22 +1,40 @@
 # Tamara Payment PHP SDK (Generic & Standalone)
 
+> **Unofficial third-party SDK.** This community project is not developed, maintained, or endorsed by Tamara.
+
 [![Latest Stable Version](https://img.shields.io/packagist/v/ahmedibrahimyassindev/tamara-php-sdk.svg?style=flat-square)](https://packagist.org/packages/ahmedibrahimyassindev/tamara-php-sdk)
 [![Total Downloads](https://img.shields.io/packagist/dt/ahmedibrahimyassindev/tamara-php-sdk.svg?style=flat-square)](https://packagist.org/packages/ahmedibrahimyassindev/tamara-php-sdk)
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-8892BF.svg?style=flat-square)](https://php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-A modern, framework-agnostic PHP SDK for integrating **Tamara (Buy Now Pay Later)** into any PHP project: **Laravel, Symfony, Yii2, WordPress, or custom vanilla applications**.
+A third-party PHP library for integrating Tamara Buy Now Pay Later into PHP applications. The core can be used without a web framework, with optional Laravel integration.
 
 ---
 
 ## Features
 
-- **Framework Agnostic**: Zero dependency on any specific framework (Yii2, Laravel, etc.).
+- **Framework Independent Core**: Use the SDK without a framework; Laravel integration is optional.
 - **PSR Standards**: Uses PSR-4 autoloading and optional PSR-3 Logger (`Psr\Log\LoggerInterface`).
 - **Laravel Ready**: Out-of-the-box auto-discovery, `Tamara` Facade, and publishable config.
 - **One-Call Checkout**: Create checkout sessions and redirect customers with minimal boilerplate.
 - **Unified Webhook Processor**: Map events (`order_approved`, `order_authorised`, `order_captured`, `order_declined`) to your model automatically.
-- **Configurable Fees / Markup**: Easily configure or bypass markup rates via `TamaraService::setFeeRatio()`.
+- **Fee Calculation Helpers**: Opt-in helpers calculate fee amounts; the SDK does not add fees to checkout totals automatically.
+
+## Why this SDK?
+
+Tamara also publishes an [official PHP SDK](https://github.com/Tamara-Technology/php-sdk) as `tamara-solution/php-sdk`. Choose that package when you want Tamara's official API client and transport integrations. Choose this package when you want its orderable entity trait, webhook processor, and optional Laravel service provider.
+
+| | Official Tamara SDK | This community SDK |
+| --- | --- | --- |
+| Composer package | `tamara-solution/php-sdk` | `ahmedibrahimyassindev/tamara-php-sdk` |
+| PHP namespace | `Tamara\` | `TamaraPhpSdk\` |
+| Maintainer | Tamara | Community project; not endorsed by Tamara |
+
+The distinct namespace allows both packages to be installed together without this SDK claiming the official SDK's `Tamara\` prefix.
+
+### Upgrade note for v2
+
+Version 2 changes all SDK imports from `Tamara\...` to `TamaraPhpSdk\...`. The optional Laravel facade alias changes from `Tamara` to `TamaraPhpSdk`. Update imports and facade references when upgrading from v1.
 
 ---
 
@@ -58,11 +76,11 @@ field or implement `onTamaraPartiallyCaptured()` and `onTamaraPartiallyRefunded(
 
 ### 1. Make Your Model Orderable
 
-Implement `Tamara\Contracts\TamaraOrderableInterface` (you can use `Tamara\Traits\TamaraOrderableTrait` to satisfy all default methods):
+Implement `TamaraPhpSdk\Contracts\TamaraOrderableInterface` (you can use `TamaraPhpSdk\Traits\TamaraOrderableTrait` to satisfy all default methods):
 
 ```php
-use Tamara\Contracts\TamaraOrderableInterface;
-use Tamara\Traits\TamaraOrderableTrait;
+use TamaraPhpSdk\Contracts\TamaraOrderableInterface;
+use TamaraPhpSdk\Traits\TamaraOrderableTrait;
 
 class Order extends \Illuminate\Database\Eloquent\Model implements TamaraOrderableInterface
 {
@@ -81,13 +99,13 @@ The checkout currency comes from the order's `getTamaraCurrency()` method. The L
 ### 2. Create Checkout Session
 
 ```php
-use Tamara\TamaraService;
+use TamaraPhpSdk\TamaraService;
 
 // Create service from environment variables
 $service = TamaraService::fromEnv();
 
 // Or instantiate manually with credentials
-// $client = new \Tamara\TamaraClient($merchantToken, $notificationToken, $sandbox = true);
+// $client = new \TamaraPhpSdk\TamaraClient($merchantToken, $notificationToken, $sandbox = true);
 // $service = new TamaraService($client);
 
 $checkoutUrl = $service->initiateCheckout(
@@ -105,7 +123,7 @@ exit;
 ### 3. Handle Webhooks (Secure & Authenticated)
 
 ```php
-use Tamara\TamaraService;
+use TamaraPhpSdk\TamaraService;
 
 $service   = TamaraService::fromEnv();
 $processor = $service->createWebhookProcessor();
@@ -119,8 +137,9 @@ $processor->addResolver(function (string $orderReferenceId) {
 $rawPayload = file_get_contents('php://input');
 $data       = json_decode($rawPayload, true) ?: [];
 $token      = $_GET['tamaraToken'] ?? null;
+$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? null;
 
-$result = $processor->process($data, $rawPayload, $token);
+$result = $processor->process($data, $rawPayload, $token, $authHeader);
 
 header('Content-Type: application/json');
 echo json_encode($result);
@@ -137,8 +156,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use Illuminate\Http\Request;
-use Tamara\TamaraService;
-use Tamara\TamaraWebhookProcessor;
+use TamaraPhpSdk\TamaraService;
+use TamaraPhpSdk\TamaraWebhookProcessor;
 
 class TamaraPaymentController extends Controller
 {
@@ -216,8 +235,9 @@ $service->capturePayment($tamaraOrderId, $amount, 'SAR', $items, $shippingInfo);
 $service->cancelOrder($tamaraOrderId);
 ```
 
-For capture, `$shippingInfo` must include `shipped_at`, `shipping_company`,
-`tracking_number`, and `tracking_url`. The method also accepts optional shipping, tax,
+For capture, `$shippingInfo` must include `shipped_at` and `shipping_company`.
+`tracking_number` (string, integer, or null) and `tracking_url` (string or null) are optional.
+The method also accepts optional shipping, tax,
 and discount amounts after `$shippingInfo`. Tamara cancellation is allowed only while
 the order is authorised; the SDK checks the remote order status before calling cancel.
 Canceling the uncaptured remainder after a partial capture is out of scope. Cancel events
@@ -233,6 +253,13 @@ The trait's default item represents the full order amount. If your order has shi
 tax, or a discount, override `getTamaraItems()` so item totals plus those adjustments
 match `getTamaraAmount()`. The optional discount label can be supplied by implementing
 `getTamaraDiscountName()`; otherwise the builder uses `Discount`.
+
+### Sandbox verification status
+
+Checkout, approval, and authorisation were exercised against Tamara's sandbox. This account
+automatically captured the order after authorisation, so **manual capture and cancellation
+have not yet been verified in the sandbox**. Webhook payload handling was tested locally;
+delivery from Tamara to a registered endpoint was not part of that local test.
 
 ---
 
