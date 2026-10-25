@@ -15,7 +15,7 @@ A third-party PHP library for integrating Tamara Buy Now Pay Later into PHP appl
 
 - **Framework Independent Core**: Use the SDK without a framework; Laravel integration is optional.
 - **PSR Standards**: Uses PSR-4 autoloading and optional PSR-3 Logger (`Psr\Log\LoggerInterface`).
-- **Laravel Ready**: Out-of-the-box auto-discovery, `Tamara` Facade, and publishable config.
+- **Laravel Ready**: Out-of-the-box auto-discovery, `TamaraPhpSdk` Facade, and publishable config.
 - **One-Call Checkout**: Create checkout sessions and redirect customers with minimal boilerplate.
 - **Unified Webhook Processor**: Map events (`order_approved`, `order_authorised`, `order_captured`, `order_declined`) to your model automatically.
 - **Fee Calculation Helpers**: Opt-in helpers calculate fee amounts; the SDK does not add fees to checkout totals automatically.
@@ -29,6 +29,10 @@ Tamara also publishes an [official PHP SDK](https://github.com/Tamara-Technology
 | Composer package | `tamara-solution/php-sdk` | `ahmedibrahimyassindev/tamara-php-sdk` |
 | PHP namespace | `Tamara\` | `TamaraPhpSdk\` |
 | Maintainer | Tamara | Community project; not endorsed by Tamara |
+| HTTP dependencies | Guzzle/Buzz and supporting PSR HTTP packages | PHP cURL extension and `psr/log` |
+| Laravel integration | No Laravel provider or facade shown in the official README | Auto-discovered service provider, `TamaraPhpSdk` facade, and publishable config |
+| Webhook handling | API client and notification-related services | Webhook processor with atomic deduplication, state tracking, and partial capture/refund states |
+| Endpoint coverage | Broader API coverage, including payment-type lookup and refund operations | Checkout, authorisation, capture, and cancel; payment-type lookup and refund API support are not implemented yet |
 
 The distinct namespace allows both packages to be installed together without this SDK claiming the official SDK's `Tamara\` prefix.
 

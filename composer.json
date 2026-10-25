@@ -1,6 +1,6 @@
 {
     "name": "ahmedibrahimyassindev/tamara-php-sdk",
-    "description": "Modern, framework-agnostic PHP SDK for Tamara Buy Now Pay Later (BNPL) Payment Gateway with native Laravel support",
+    "description": "Unofficial, community-maintained PHP SDK for Tamara Buy Now Pay Later (BNPL), with optional Laravel integration",
     "type": "library",
     "keywords": [
         "tamara",
