@@ -169,7 +169,7 @@ class TamaraPaymentController extends Controller
 }
 ```
 
-Return the processor's `http_status` as shown so Tamara can retry failed deliveries. `retry` is true for a `409` state conflict and a `503` event that another worker is still processing. Status meanings:
+Return the processor's `http_status` as shown so Tamara can retry failed deliveries. `retry` is true for a `409` event that is ahead of the stored order status and may become valid later, and a `503` event another worker is still processing. Stale or terminal-state events are acknowledged as `200` and ignored. Status meanings:
 
 | HTTP status | Meaning |
 | --- | --- |
@@ -177,7 +177,7 @@ Return the processor's `http_status` as shown so Tamara can retry failed deliver
 | `400` | Malformed webhook payload |
 | `401` | Missing or invalid webhook token |
 | `404` | Matching order was not found; delivery can be retried after local order creation |
-| `409` | Event conflicts with the current order state; retry after reconciling state |
+| `409` | Event is ahead of the stored order status and may become valid when earlier events arrive; retry |
 | `500` | Local webhook handler or persistence failed |
 | `502` | Tamara API/status verification or auto-authorisation failed |
 | `503` | Another worker holds the short processing lease; retry after it expires or finishes |

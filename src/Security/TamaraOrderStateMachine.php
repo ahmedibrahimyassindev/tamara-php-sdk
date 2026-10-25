@@ -102,6 +102,43 @@ class TamaraOrderStateMachine
     }
 
     /**
+     * Return true when an invalid transition is stale and retrying it cannot help.
+     * A later lifecycle target may become valid after missing earlier events arrive.
+     */
+    public static function isStaleTransition(?string $current, string $target): bool
+    {
+        $currentNorm = $current === null || trim($current) === ''
+            ? null
+            : self::normalizeStatus($current);
+        $targetNorm = self::normalizeStatus($target);
+        if ($currentNorm !== null && self::isTerminal($currentNorm)) {
+            return true;
+        }
+
+        $rank = [
+            self::STATUS_NEW => 0,
+            self::STATUS_APPROVED => 1,
+            self::STATUS_AUTHORISED => 2,
+            self::STATUS_PARTIALLY_CAPTURED => 3,
+            self::STATUS_FULLY_CAPTURED => 4,
+            self::STATUS_PARTIALLY_REFUNDED => 5,
+            self::STATUS_REFUNDED => 6,
+        ];
+
+        if (!isset($rank[$targetNorm])) {
+            // Failure outcomes and unknown states do not have a future lifecycle rank.
+            return true;
+        }
+
+        $currentRank = $currentNorm === null ? -1 : ($rank[$currentNorm] ?? null);
+        if ($currentRank === null) {
+            return true;
+        }
+
+        return $rank[$targetNorm] <= $currentRank;
+    }
+
+    /**
      * Check whether a status represents a terminal state.
      */
     public static function isTerminal(string $status): bool

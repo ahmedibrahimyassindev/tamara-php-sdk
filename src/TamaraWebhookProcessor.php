@@ -277,19 +277,21 @@ class TamaraWebhookProcessor
             && $this->deduplicator->isProcessed($autoAuthorisedMarker);
 
         if ($targetStatus !== null && !TamaraOrderStateMachine::canTransition($currentStatus, $targetStatus)) {
+            $stale = TamaraOrderStateMachine::isStaleTransition($currentStatus, $targetStatus);
             $this->logger->warning(sprintf(
-                'Tamara Webhook: Out-of-order transition rejected. Order [%s] in status [%s] cannot transition to [%s] via [%s].',
+                'Tamara Webhook: Out-of-order transition %s. Order [%s] in status [%s] cannot transition to [%s] via [%s].',
+                $stale ? 'acknowledged as stale' : 'deferred for retry',
                 $orderReferenceId,
                 $currentStatus ?? 'none',
                 $targetStatus,
                 $eventType
             ));
             return [
-                'success' => false,
-                'http_status' => 409,
+                'success' => $stale,
+                'http_status' => $stale ? 200 : 409,
                 'ignored' => true,
-                'retry' => true,
-                'message' => 'Webhook event conflicts with the current order status',
+                'retry' => !$stale,
+                'message' => $stale ? 'Stale webhook event ignored' : 'Webhook event is ahead of the current order status',
             ];
         }
 

@@ -65,6 +65,7 @@ class TamaraWebhookProcessorTest
         $this->testSuccessfulEventProcessing();
         $this->testDeduplicationPreventsDuplicateProcessing();
         $this->testOutofOrderEventRejected();
+        $this->testFutureOutOfOrderEventIsRetryable();
         $this->testCaptureEventAdvancesApprovedOrder();
         $this->testAutoAuthoriseAndFailureResponse();
         $this->testAuthorisedEventIsNotDispatchedTwice();
@@ -221,9 +222,31 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
 
-        testExpect($res['success'] === false && $res['ignored'] === true, 'Out-of-order transitions should be retryable conflicts');
-        testExpect($res['http_status'] === 409 && $res['retry'] === true);
+        testExpect($res['success'] === true && $res['ignored'] === true, 'Obsolete transitions should be acknowledged and ignored');
+        testExpect($res['http_status'] === 200 && empty($res['retry']));
         testExpect($mockOrder->tamara_status === 'fully_captured', 'Terminal state must not be overwritten');
+    }
+
+    protected function testFutureOutOfOrderEventIsRetryable(): void
+    {
+        $secret = 'test-secret';
+        $order = new MockOrder();
+        $order->tamara_status = 'approved';
+        $processor = new TamaraWebhookProcessor();
+        $processor->setNotificationToken($secret);
+        $processor->addResolver(fn($ref) => $order);
+        $token = TamaraSignatureVerifier::generateToken(['iat' => time()], $secret);
+        $payload = [
+            'order_id' => 'ord-1',
+            'order_reference_id' => 'ORD-1001',
+            'event_type' => 'order_refunded',
+            'data' => ['status' => 'partially_refunded'],
+        ];
+
+        $result = $processor->process($payload, json_encode($payload), token: $token);
+        testExpect($result['success'] === false && $result['http_status'] === 409);
+        testExpect($result['retry'] === true && $result['ignored'] === true);
+        testExpect($order->getTamaraStatus() === 'approved');
     }
 
     protected function testCaptureEventAdvancesApprovedOrder(): void
@@ -263,7 +286,7 @@ class TamaraWebhookProcessorTest
         $secondProcessor->setAuthoriser(function () use (&$calls): void { $calls++; });
         $secondProcessor->autoAuthorise();
         $res = $secondProcessor->process(json_decode($payload, true), $payload, token: $token);
-        testExpect($res['success'] === false && $res['ignored'] === true && $res['http_status'] === 409);
+        testExpect($res['success'] === true && $res['ignored'] === true && $res['http_status'] === 200);
         testExpect($calls === 1, 'Already authorised order should not call authoriser again.');
 
         $retryableOrder = new MockOrder();
