@@ -76,6 +76,11 @@ class TamaraClient
         return $this;
     }
 
+    public function getLogger(): LoggerInterface
+    {
+        return $this->logger;
+    }
+
     /**
      * Create Checkout Session
      *

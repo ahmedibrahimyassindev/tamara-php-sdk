@@ -10,6 +10,7 @@ use Tamara\TamaraClient;
 use Tamara\TamaraService;
 use Tamara\TamaraWebhookProcessor;
 use Tamara\Security\TamaraAtomicCacheDeduplicator;
+use Tamara\Security\TamaraCallbackDeduplicator;
 
 class FakeLaravelConfig
 {
@@ -98,5 +99,13 @@ class TamaraLaravelProviderTest
         testExpect($deduplicator->claim('same-event') === false);
         $deduplicator->markProcessed('ttl-event');
         testExpect($app->cache->repository->lastPutTtl === 43210);
+
+        $callbackTtl = null;
+        $callbackDeduplicator = new TamaraCallbackDeduplicator(
+            fn(string $key): bool => false,
+            function (string $key, int $ttl) use (&$callbackTtl): void { $callbackTtl = $ttl; }
+        );
+        $callbackDeduplicator->markProcessed('callback-event');
+        testExpect($callbackTtl === 86400);
     }
 }

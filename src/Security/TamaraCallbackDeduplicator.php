@@ -26,7 +26,7 @@ class TamaraCallbackDeduplicator implements TamaraDeduplicatorInterface
 
     public function markProcessed(string $eventKey, int $ttl = 0): void
     {
-        ($this->storeCallback)($eventKey, $ttl);
+        ($this->storeCallback)($eventKey, $ttl > 0 ? $ttl : 86400);
     }
 }
 

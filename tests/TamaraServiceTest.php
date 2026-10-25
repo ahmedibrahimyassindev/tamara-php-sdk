@@ -132,6 +132,8 @@ class TamaraServiceTest
         $order = new class implements TamaraOrderableInterface {
             use TamaraOrderableTrait;
             public $order_reference_id = 'plain-order';
+            public $tamara_order_id;
+            public $tamara_checkout_id;
             public function getTamaraAmount(): float { return 20.0; }
             public function getTamaraAddress(): array { return ['line1' => '1 Main St', 'city' => 'Riyadh']; }
             public function onTamaraRawPayload(string $rawPayload): void {}
@@ -141,6 +143,7 @@ class TamaraServiceTest
             testExpect(false, 'Checkout should fail before remote creation when identifiers cannot be stored.');
         } catch (\Tamara\Exceptions\TamaraValidationException $e) {
             testExpect($client->checkoutCalls === 0);
+            testExpect(str_contains($e->getMessage(), 'tamara_status'));
         }
     }
 }

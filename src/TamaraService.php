@@ -112,11 +112,23 @@ class TamaraService
 
         $result = $this->client->createCheckout($payload);
 
-        $entity->onTamaraCheckoutCreated(
-            $result['order_id'] ?? '',
-            $result['checkout_id'] ?? null,
-            $entity->getTamaraOrderReferenceId()
-        );
+        $orderId = (string) ($result['order_id'] ?? '');
+        $checkoutId = isset($result['checkout_id']) ? (string) $result['checkout_id'] : null;
+        try {
+            $entity->onTamaraCheckoutCreated(
+                $orderId,
+                $checkoutId,
+                (string) ($payload['order_reference_id'] ?? '')
+            );
+        } catch (Throwable $e) {
+            $this->client->getLogger()->error('Tamara checkout was created but local persistence failed.', [
+                'order_id' => $orderId,
+                'checkout_id' => $checkoutId,
+                'order_reference_id' => $payload['order_reference_id'] ?? null,
+                'exception' => get_class($e),
+            ]);
+            throw $e;
+        }
 
         return $result['checkout_url'];
     }

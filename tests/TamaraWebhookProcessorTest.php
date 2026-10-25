@@ -221,8 +221,8 @@ class TamaraWebhookProcessorTest
 
         $res = $processor->process(json_decode($payload, true), $payload, token: $token);
 
-        testExpect($res['success'] === true && $res['ignored'] === true, 'Obsolete transitions should be acknowledged and ignored');
-        testExpect($res['http_status'] === 200);
+        testExpect($res['success'] === false && $res['ignored'] === true, 'Out-of-order transitions should be retryable conflicts');
+        testExpect($res['http_status'] === 409 && $res['retry'] === true);
         testExpect($mockOrder->tamara_status === 'fully_captured', 'Terminal state must not be overwritten');
     }
 
@@ -263,7 +263,7 @@ class TamaraWebhookProcessorTest
         $secondProcessor->setAuthoriser(function () use (&$calls): void { $calls++; });
         $secondProcessor->autoAuthorise();
         $res = $secondProcessor->process(json_decode($payload, true), $payload, token: $token);
-        testExpect($res['success'] === true && $res['ignored'] === true);
+        testExpect($res['success'] === false && $res['ignored'] === true && $res['http_status'] === 409);
         testExpect($calls === 1, 'Already authorised order should not call authoriser again.');
 
         $retryableOrder = new MockOrder();

@@ -19,7 +19,7 @@ interface TamaraDeduplicatorInterface
      * Mark an event key as processed.
      *
      * @param string $eventKey
-     * @param int $ttl Time to keep deduplication record in seconds (default 86400 = 24h)
+     * @param int $ttl Time to keep deduplication record in seconds (0 uses the implementation default, normally 86400 = 24h)
      * @return void
      */
     public function markProcessed(string $eventKey, int $ttl = 0): void;

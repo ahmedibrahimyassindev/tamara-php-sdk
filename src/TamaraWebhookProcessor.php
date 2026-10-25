@@ -285,10 +285,11 @@ class TamaraWebhookProcessor
                 $eventType
             ));
             return [
-                'success' => true,
-                'http_status' => 200,
+                'success' => false,
+                'http_status' => 409,
                 'ignored' => true,
-                'message' => 'Obsolete event ignored',
+                'retry' => true,
+                'message' => 'Webhook event conflicts with the current order status',
             ];
         }
 

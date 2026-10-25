@@ -75,7 +75,7 @@ class Order extends \Illuminate\Database\Eloquent\Model implements TamaraOrderab
 }
 ```
 
-The entity must be able to persist `tamara_order_id` and `tamara_checkout_id` when using `TamaraOrderableTrait`. Eloquent models can use corresponding database attributes (or their supported dynamic attributes); plain PHP entities should declare both properties. The SDK checks this before creating a Tamara checkout, so a configuration mistake cannot leave an unrecorded remote session.
+The entity must be able to persist `tamara_order_id`, `tamara_checkout_id`, and `tamara_status` when using `TamaraOrderableTrait`. Eloquent models can use corresponding database attributes (or their supported dynamic attributes); plain PHP entities should declare all three properties. The SDK checks this before creating a Tamara checkout, so a configuration mistake cannot leave an unrecorded remote session.
 
 ### 2. Create Checkout Session
 
@@ -168,6 +168,19 @@ class TamaraPaymentController extends Controller
     }
 }
 ```
+
+Return the processor's `http_status` as shown so Tamara can retry failed deliveries. `retry` is true for a `409` state conflict and a `503` event that another worker is still processing. Status meanings:
+
+| HTTP status | Meaning |
+| --- | --- |
+| `200` | Processed, duplicate, or unsupported event acknowledged |
+| `400` | Malformed webhook payload |
+| `401` | Missing or invalid webhook token |
+| `404` | Matching order was not found; delivery can be retried after local order creation |
+| `409` | Event conflicts with the current order state; retry after reconciling state |
+| `500` | Local webhook handler or persistence failed |
+| `502` | Tamara API/status verification or auto-authorisation failed |
+| `503` | Another worker holds the short processing lease; retry after it expires or finishes |
 
 ---
 

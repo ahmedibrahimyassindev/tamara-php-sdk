@@ -142,7 +142,7 @@ trait TamaraOrderableTrait
     /** Validate that checkout identifiers can be persisted before creating a remote session. */
     public function assertTamaraCheckoutPersistenceReady(): void
     {
-        foreach (['tamara_order_id', 'tamara_checkout_id'] as $property) {
+        foreach (['tamara_order_id', 'tamara_checkout_id', 'tamara_status'] as $property) {
             if (!property_exists($this, $property) && !method_exists($this, '__set')) {
                 throw new \Tamara\Exceptions\TamaraValidationException(
                     "Declare {$property} on the order entity or provide magic attribute support before starting checkout."
